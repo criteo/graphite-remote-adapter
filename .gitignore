@@ -1,0 +1,23 @@
+*#
+.#*
+*-stamp
+/*.yaml
+/*.yml
+/*.rules
+*.exe
+
+# Editor files #
+################
+*~
+.*.swp
+.*.swo
+*.iml
+.idea
+
+/graphite_storage_adapter
+benchmark.txt
+/.build
+/.release
+/.tarballs
+
+!/.travis.yml
