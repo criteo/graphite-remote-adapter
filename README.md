@@ -1,4 +1,4 @@
-# Graphite Remote storage adapter [![Build Status](https://travis-ci.org/criteo/graphite-remote-adapter.svg?branch=master)][travis]
+# Graphite Remote storage adapter [![Build Status](https://travis-ci.org/criteo/graphite-remote-adapter.svg?branch=master)](https://travis-ci.org/criteo/graphite-remote-adapter)
 
 This is a read/write adapter that receives samples via Prometheus's remote write
 protocol and stores them in Graphite.
