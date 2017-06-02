@@ -5,7 +5,7 @@ language: go
 go:
 - 1.8.x
 
-go_import_path: github.com/criteo/graphite_remote_adapter
+go_import_path: github.com/criteo/graphite-remote-adapter
 
 script:
-- make check_license style test
+- make style test
