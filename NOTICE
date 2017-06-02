@@ -1,0 +1,45 @@
+The Prometheus systems and service monitoring server
+Copyright 2012-2015 The Prometheus Authors
+
+This product includes software developed at
+SoundCloud Ltd. (http://soundcloud.com/).
+Criteo (http://criteolabs.com/).
+
+
+The following components are included in this product:
+
+promtheus
+https://github.com/prometheus/prometheus
+Original written by the Prometheus Authors
+Licensed under the Apache License, Version 2.0
+
+fuzzy
+https://github.com/mattyork/fuzzy
+Original written by @mattyork
+Copyright 2012 Matt York
+Licensed under the MIT License
+
+Go support for Protocol Buffers - Google's data interchange format
+http://github.com/golang/protobuf/
+Copyright 2010 The Go Authors
+See source code for license details.
+
+Go support for leveled logs, analogous to
+https://code.google.com/p/google-glog/
+Copyright 2013 Google Inc.
+Licensed under the Apache License, Version 2.0
+
+Support for streaming Protocol Buffer messages for the Go language (golang).
+https://github.com/matttproud/golang_protobuf_extensions
+Copyright 2013 Matt T. Proud
+Licensed under the Apache License, Version 2.0
+
+DNS library in Go
+http://miek.nl/posts/2014/Aug/16/go-dns-package/
+Copyright 2009 The Go Authors, 2011 Miek Gieben
+See https://github.com/miekg/dns/blob/master/LICENSE for license details.
+
+gosnappy - a fork of code.google.com/p/snappy-go
+https://github.com/syndtr/gosnappy
+Copyright 2011 The Snappy-Go Authors
+See https://github.com/syndtr/gosnappy/blob/master/LICENSE for license details.
