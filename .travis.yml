@@ -1,4 +1,7 @@
-sudo: false
+sudo: required
+
+services:
+- docker
 
 language: go
 
@@ -9,3 +12,19 @@ go_import_path: github.com/criteo/graphite-remote-adapter
 
 script:
 - make style test
+
+before_deploy:
+- make promu
+- promu crossbuild
+- promu crossbuild tarballs
+- promu checksum .tarballs
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ddPTgFtKs6tOC/JsYGak7OivwbixisS8X7bX1uxqhTxJ9PYOZsPnpuvH0IVpmBrmaWEH8xRcPm08BQG8F5tjxWxxOh0lzmifVp27Tywyd5QaBHJkHk4ZWSB6k8P2aWdnpkDX7cl0Y5xzKL5UFyVOEJ2rhaxXC27dKtqy4kg31nTCY/Ue9BH2dCy0Yz+uns6Y4j/zd4vJeOe35EvRZFkwMsw6HfWO/LocOaczKSdwtLR9/71JGkSuxd19JSNgHCPEGRLqVVkMoc/VYqNGyLcjoD2pf9TUtEax3gS8Z799fKHtX5LFn0Qr8n1uvgyIwq4e1dqxOOS4GbHr7mT14y3rNeHqhvKcsFjGqjcALzffSKXMgDc+f2u5sZuR8u70Scu2qGRIYGPnqojKfecRho7zRf+NIKdXB383N+lzhDYFKhRenq4d+maW1Z3WEvysOcni8tWBrz2/j5CoiBTn306xRFNaEDA2Qx1iH+h+FinkvXcR8vmWQOONt55aZnJys02LDE44s/N1rME5Ft0wclHoWq6bfcvlApRQDS/3bEQSC7z5VPq6Q6zb3atZcqHmh2uvvXln9bPC7XMBSrVluLi0VU9xw8vvmqkXuqMjpAYWX6T+op3Zos/rm5+vYdDqV/4AuaWsV+X/hO7lab4791xoD0UweAShdb8FBXgR4p3Zuvk=
+  file_glob: true
+  file: .tarballs/*
+  skip_cleanup: true
+  on:
+    tags: true
