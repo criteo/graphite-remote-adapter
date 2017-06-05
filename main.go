@@ -44,6 +44,7 @@ type config struct {
 	remoteWriteTimeout time.Duration
 	listenAddr         string
 	telemetryPath      string
+	snappyFramed       bool
 }
 
 var (
@@ -91,7 +92,7 @@ func main() {
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
 	writers, readers := buildClients(cfg)
-	serve(cfg.listenAddr, writers, readers)
+	serve(cfg.listenAddr, cfg.snappyFramed, writers, readers)
 	log.Infoln("See you next time!")
 }
 
@@ -116,6 +117,9 @@ func parseFlags() *config {
 	)
 	flag.DurationVar(&cfg.remoteReadTimeout, "read-timeout", 30*time.Second,
 		"The timeout to use when reading samples to the remote storage.",
+	)
+	flag.BoolVar(&cfg.snappyFramed, "snappy-framed", false,
+		"Use framed snappy for compression of remote storage requests and responses (for prometheus <2.0).",
 	)
 	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
@@ -151,20 +155,26 @@ func buildClients(cfg *config) ([]writer, []reader) {
 	return writers, readers
 }
 
-func serve(addr string, writers []writer, readers []reader) error {
+func serve(addr string, snappyFramed bool, writers []writer, readers []reader) error {
 	log.Infof("Listening on %v", addr)
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
 		log.With("request", r).Debugln("Handling /write request")
-		compressed, err := ioutil.ReadAll(r.Body)
+		var reqBuf []byte
+		var err error
+		if snappyFramed {
+			reqBuf, err = ioutil.ReadAll(snappy.NewReader(r.Body))
+		} else {
+			var compressed []byte
+			compressed, err = ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.With("err", err).Warnln("Error reading request body")
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			reqBuf, err = snappy.Decode(nil, compressed)
+		}
 		if err != nil {
 			log.With("err", err).Warnln("Error reading request body")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		reqBuf, err := snappy.Decode(nil, compressed)
-		if err != nil {
-			log.With("err", err).Warnln("Error decoding request body")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -192,16 +202,22 @@ func serve(addr string, writers []writer, readers []reader) error {
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
 		log.With("request", r).Debugln("Handling /read request")
-		compressed, err := ioutil.ReadAll(r.Body)
+		var reqBuf []byte
+		var err error
+		if snappyFramed {
+			reqBuf, err = ioutil.ReadAll(snappy.NewReader(r.Body))
+		} else {
+			var compressed []byte
+			compressed, err = ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.With("err", err).Warnln("Error reading request body")
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			reqBuf, err = snappy.Decode(nil, compressed)
+		}
 		if err != nil {
 			log.With("err", err).Warnln("Error reading request body")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		reqBuf, err := snappy.Decode(nil, compressed)
-		if err != nil {
-			log.With("err", err).Warnln("Error decoding request body")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -237,10 +253,14 @@ func serve(addr string, writers []writer, readers []reader) error {
 		}
 
 		w.Header().Set("Content-Type", "application/x-protobuf")
-		w.Header().Set("Content-Encoding", "snappy")
-
-		compressed = snappy.Encode(nil, data)
-		if _, err := w.Write(compressed); err != nil {
+		if snappyFramed {
+			_, err = snappy.NewWriter(w).Write(data)
+		} else {
+			w.Header().Set("Content-Encoding", "snappy")
+			compressed := snappy.Encode(nil, data)
+			_, err = w.Write(compressed)
+		}
+		if err != nil {
 			log.With("data", data).With("err", err).Warnln("Error encoding response body")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
