@@ -27,6 +27,7 @@ import (
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/version"
 	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/storage/remote"
@@ -84,14 +85,18 @@ func init() {
 }
 
 func main() {
+	log.Infoln("Starting prometheus", version.Info())
+	log.Infoln("Build context", version.BuildContext())
 	cfg := parseFlags()
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
 	writers, readers := buildClients(cfg)
 	serve(cfg.listenAddr, writers, readers)
+	log.Infoln("See you next time!")
 }
 
 func parseFlags() *config {
+	log.Infoln("Parsing flags")
 	cfg := &config{}
 
 	flag.StringVar(&cfg.carbonAddress, "carbon-address", "",
@@ -131,6 +136,7 @@ type reader interface {
 }
 
 func buildClients(cfg *config) ([]writer, []reader) {
+	log.With("cfg", cfg).Infof("Building graphite clients")
 	var writers []writer
 	var readers []reader
 	if cfg.carbonAddress != "" || cfg.graphiteWebURL != "" {
@@ -145,21 +151,26 @@ func buildClients(cfg *config) ([]writer, []reader) {
 }
 
 func serve(addr string, writers []writer, readers []reader) error {
+	log.Infof("Listening on %v", addr)
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
+		log.With("request", r).Debugln("Handling /write request")
 		compressed, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			log.With("err", err).Warnln("Error reading request body")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		reqBuf, err := snappy.Decode(nil, compressed)
 		if err != nil {
+			log.With("err", err).Warnln("Error decoding request body")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		var req remote.WriteRequest
 		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			log.With("err", err).Warnln("Error unmarshaling remote write request")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -179,26 +190,31 @@ func serve(addr string, writers []writer, readers []reader) error {
 	})
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
+		log.With("request", r).Debugln("Handling /read request")
 		compressed, err := ioutil.ReadAll(r.Body)
 		if err != nil {
+			log.With("err", err).Warnln("Error reading request body")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		reqBuf, err := snappy.Decode(nil, compressed)
 		if err != nil {
+			log.With("err", err).Warnln("Error decoding request body")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		var req remote.ReadRequest
 		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			log.With("err", err).Warnln("Error unmarshaling remote write request")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// TODO: Support reading from more than one reader and merging the results.
 		if len(readers) != 1 {
+			log.Warnf("expected exactly one reader, found %d readers", len(readers))
 			http.Error(w, fmt.Sprintf("expected exactly one reader, found %d readers", len(readers)), http.StatusInternalServerError)
 			return
 		}
@@ -214,6 +230,7 @@ func serve(addr string, writers []writer, readers []reader) error {
 
 		data, err := proto.Marshal(resp)
 		if err != nil {
+			log.With("response", resp).With("err", err).Warnln("Error marshaling remote read response")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -223,6 +240,7 @@ func serve(addr string, writers []writer, readers []reader) error {
 
 		compressed = snappy.Encode(nil, data)
 		if _, err := w.Write(compressed); err != nil {
+			log.With("data", data).With("err", err).Warnln("Error encoding response body")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

@@ -99,7 +99,8 @@ func pathFromMetric(m model.Metric, prefix string) string {
 
 // Write sends a batch of samples to Graphite.
 func (c *Client) Write(samples model.Samples) error {
-	if c.carbon != "" {
+	log.With("num_samples", len(samples)).With("storage", c.Name()).Debugf("Remote write")
+	if c.carbon == "" {
 		return nil
 	}
 
