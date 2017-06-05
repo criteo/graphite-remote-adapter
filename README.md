@@ -31,7 +31,11 @@ $ ./graphite-remote-adapter -graphite--address=localhost:2003
 Graphite example:
 
 ```
-./graphite_storage_adapter -graphite-address=localhost:8080
+./graphite-remote-adapter \
+  -carbon-address localhost:2001 \
+  -graphite-url http://localhost:8080/ \
+  -read-timeout 10s -write-timeout 5s \
+  -graphite-prefix prometheus.
 ```
 
 To show all flags:

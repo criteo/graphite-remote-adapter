@@ -35,12 +35,14 @@ import (
 )
 
 type config struct {
-	graphiteAddress   string
-	graphiteTransport string
-	graphitePrefix    string
-	remoteTimeout     time.Duration
-	listenAddr        string
-	telemetryPath     string
+	carbonAddress      string
+	carbonTransport    string
+	graphiteWebURL     string
+	graphitePrefix     string
+	remoteReadTimeout  time.Duration
+	remoteWriteTimeout time.Duration
+	listenAddr         string
+	telemetryPath      string
 }
 
 var (
@@ -92,17 +94,23 @@ func main() {
 func parseFlags() *config {
 	cfg := &config{}
 
-	flag.StringVar(&cfg.graphiteAddress, "graphite-address", "",
+	flag.StringVar(&cfg.carbonAddress, "carbon-address", "",
 		"The host:port of the Graphite server to send samples to. None, if empty.",
 	)
-	flag.StringVar(&cfg.graphiteTransport, "graphite-transport", "tcp",
+	flag.StringVar(&cfg.carbonTransport, "carbon-transport", "tcp",
 		"Transport protocol to use to communicate with Graphite. 'tcp', if empty.",
+	)
+	flag.StringVar(&cfg.graphiteWebURL, "graphite-url", "",
+		"The URL of the remote Graphite Web server to send samples to. None, if empty.",
 	)
 	flag.StringVar(&cfg.graphitePrefix, "graphite-prefix", "",
 		"The prefix to prepend to all metrics exported to Graphite. None, if empty.",
 	)
-	flag.DurationVar(&cfg.remoteTimeout, "send-timeout", 30*time.Second,
-		"The timeout to use when sending samples to the remote storage.",
+	flag.DurationVar(&cfg.remoteWriteTimeout, "write-timeout", 30*time.Second,
+		"The timeout to use when writing samples to the remote storage.",
+	)
+	flag.DurationVar(&cfg.remoteReadTimeout, "read-timeout", 30*time.Second,
+		"The timeout to use when reading samples to the remote storage.",
 	)
 	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
@@ -125,11 +133,13 @@ type reader interface {
 func buildClients(cfg *config) ([]writer, []reader) {
 	var writers []writer
 	var readers []reader
-	if cfg.graphiteAddress != "" {
+	if cfg.carbonAddress != "" || cfg.graphiteWebURL != "" {
 		c := graphite.NewClient(
-			cfg.graphiteAddress, cfg.graphiteTransport,
-			cfg.remoteTimeout, cfg.graphitePrefix)
+			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
+			cfg.graphiteWebURL, cfg.remoteReadTimeout,
+			cfg.graphitePrefix)
 		writers = append(writers, c)
+		readers = append(readers, c)
 	}
 	return writers, readers
 }
