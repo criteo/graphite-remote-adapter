@@ -27,8 +27,8 @@ import (
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"github.com/prometheus/common/version"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/version"
 
 	"github.com/prometheus/prometheus/storage/remote"
 
@@ -85,7 +85,7 @@ func init() {
 }
 
 func main() {
-	log.Infoln("Starting prometheus", version.Info())
+	log.Infoln("Starting graphite-remote-adapter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 	cfg := parseFlags()
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
@@ -136,7 +136,7 @@ type reader interface {
 }
 
 func buildClients(cfg *config) ([]writer, []reader) {
-	log.With("cfg", cfg).Infof("Building graphite clients")
+	log.With("cfg", cfg).Infof("Building clients")
 	var writers []writer
 	var readers []reader
 	if cfg.carbonAddress != "" || cfg.graphiteWebURL != "" {
@@ -147,6 +147,7 @@ func buildClients(cfg *config) ([]writer, []reader) {
 		writers = append(writers, c)
 		readers = append(readers, c)
 	}
+	log.With("num_writers", len(writers)).With("num_readers", len(readers)).Infof("Built clients")
 	return writers, readers
 }
 
