@@ -12,7 +12,7 @@ You can either `go get` it:
 ```
 $ GO15VENDOREXPERIMENT=1 go get github.com/criteo/graphite-remote-adapter/cmd/...
 # cd $GOPATH/src/github.com/criteo/graphite-remote-adapter
-$ alertmanager -config.file=<your_file>
+$ graphite-remote-adapter -config.file=<your_file>
 ```
 
 Or checkout the source code and build manually:
@@ -41,7 +41,7 @@ Graphite example:
 To show all flags:
 
 ```
-./graphite_storage_adapter -h
+./graphite-storage-adapter -h
 ```
 
 ## Configuring Prometheus
