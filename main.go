@@ -36,6 +36,7 @@ import (
 )
 
 type config struct {
+	configFile         string
 	carbonAddress      string
 	carbonTransport    string
 	graphiteWebURL     string
@@ -88,6 +89,7 @@ func init() {
 func main() {
 	log.Infoln("Starting graphite-remote-adapter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
+
 	cfg := parseFlags()
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
@@ -100,6 +102,9 @@ func parseFlags() *config {
 	log.Infoln("Parsing flags")
 	cfg := &config{}
 
+	flag.StringVar(&cfg.configFile, "config-file", "graphite-remote-adapter.yml",
+		"Graphite remote adapter configuration file name.",
+	)
 	flag.StringVar(&cfg.carbonAddress, "carbon-address", "",
 		"The host:port of the Graphite server to send samples to. None, if empty.",
 	)
@@ -147,7 +152,7 @@ func buildClients(cfg *config) ([]writer, []reader) {
 		c := graphite.NewClient(
 			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
 			cfg.graphiteWebURL, cfg.remoteReadTimeout,
-			cfg.graphitePrefix)
+			cfg.graphitePrefix, cfg.configFile)
 		writers = append(writers, c)
 		readers = append(readers, c)
 	}

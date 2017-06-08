@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"sort"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,6 +31,8 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
+
+	"github.com/criteo/graphite-remote-adapter/graphite/config"
 )
 
 const (
@@ -47,11 +48,18 @@ type Client struct {
 	graphite_web     string
 	read_timeout     time.Duration
 	prefix           string
+	rules            []*config.Rule
+	template_data    map[string]interface{}
 	ignoredSamples   prometheus.Counter
 }
 
 // NewClient creates a new Client.
-func NewClient(carbon string, carbon_transport string, write_timeout time.Duration, graphite_web string, read_timeout time.Duration, prefix string) *Client {
+func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
+	graphite_web string, read_timeout time.Duration, prefix string, configFile string) *Client {
+	fileConf, err := config.LoadFile(configFile)
+	if err != nil {
+		log.With("err", err).Warnln("Error loading config file")
+	}
 	return &Client{
 		carbon:           carbon,
 		carbon_transport: carbon_transport,
@@ -59,6 +67,8 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		graphite_web:     graphite_web,
 		read_timeout:     read_timeout,
 		prefix:           prefix,
+		rules:            fileConf.Rules,
+		template_data:    fileConf.Template_data,
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "prometheus_influxdb_ignored_samples_total",
@@ -68,33 +78,16 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 	}
 }
 
-func pathFromMetric(m model.Metric, prefix string) string {
-	var buffer bytes.Buffer
-
-	buffer.WriteString(prefix)
-	buffer.WriteString(escape(m[model.MetricNameLabel]))
-
-	// We want to sort the labels.
-	labels := make(model.LabelNames, 0, len(m))
-	for l := range m {
-		labels = append(labels, l)
+func prepareDataPoint(path string, s *model.Sample, c *Client) string {
+	t := float64(s.Timestamp.UnixNano()) / 1e9
+	v := float64(s.Value)
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		log.Debugf("cannot send value %f to Graphite,"+
+			"skipping sample %#v", v, s)
+		c.ignoredSamples.Inc()
+		return ""
 	}
-	sort.Sort(labels)
-
-	// For each label, in order, add ".<label>.<value>".
-	for _, l := range labels {
-		v := m[l]
-
-		if l == model.MetricNameLabel || len(l) == 0 {
-			continue
-		}
-		// Since we use '.' instead of '=' to separate label and values
-		// it means that we can't have an '.' in the metric name. Fortunately
-		// this is prohibited in prometheus metrics.
-		buffer.WriteString(fmt.Sprintf(
-			".%s.%s", string(l), escape(v)))
-	}
-	return buffer.String()
+	return fmt.Sprintf("%s %f %f\n", path, v, t)
 }
 
 // Write sends a batch of samples to Graphite.
@@ -112,17 +105,14 @@ func (c *Client) Write(samples model.Samples) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		k := pathFromMetric(s.Metric, c.prefix)
-		t := float64(s.Timestamp.UnixNano()) / 1e9
-		v := float64(s.Value)
-		if math.IsNaN(v) || math.IsInf(v, 0) {
-			log.Debugf("cannot send value %f to Graphite,"+
-				"skipping sample %#v", v, s)
-			c.ignoredSamples.Inc()
-			continue
+		paths := pathsFromMetric(s.Metric, c.prefix, c.rules, c.template_data)
+		for _, k := range paths {
+			if str := prepareDataPoint(k, s, c); str != "" {
+				fmt.Fprintf(&buf, str)
+			}
 		}
-		fmt.Fprintf(&buf, "%s %f %f\n", k, v, t)
 	}
+	fmt.Println(buf.String())
 
 	_, err = conn.Write(buf.Bytes())
 	if err != nil {

@@ -44,6 +44,31 @@ To show all flags:
 ./graphite-storage-adapter -h
 ```
 
+## Example
+This is an example configuration that should cover most relevant aspects of the YAML configuration format.
+
+```yaml
+template_data:
+    site_mapping:
+        eu-par: fr_eqx
+
+rules:
+    - match:
+        owner: team-X
+      match_re:
+        service: ^(foo1|foo2|baz)$
+      template: 'great.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env "prod"}}.{{.labels.env}}{{end}}'
+      continue: true
+    - match:
+        owner: team-X
+        env:   prod
+      template: 'bla.bla.{{.labels.owner}}.great.path'
+      continue: true
+    - match:
+        env: team-Z
+      continue: false
+```
+
 ## Configuring Prometheus
 
 To configure Prometheus to send samples to this binary, add the following to your `prometheus.yml`:
