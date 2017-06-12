@@ -11,14 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package graphite
+package utils
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
-
-	"github.com/prometheus/common/model"
 )
 
 const (
@@ -79,7 +77,7 @@ const (
 // "Bj%C3%B6rn's%20email:%20bjoern%40soundcloud.com"
 //
 // "日" -> "%E6%97%A5"
-func escape(tv model.LabelValue) string {
+func Escape(tv string) string {
 	length := len(tv)
 	result := bytes.NewBuffer(make([]byte, 0, length))
 	for i := 0; i < length; i++ {
