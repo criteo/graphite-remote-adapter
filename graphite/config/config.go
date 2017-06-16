@@ -14,10 +14,10 @@
 package config
 
 import (
+	"fmt"
 	"io/ioutil"
 	"regexp"
 	"strings"
-	"fmt"
 	"text/template"
 
 	"encoding/json"
@@ -67,15 +67,14 @@ func LoadFile(filename string) (*Config, error) {
 }
 
 // DefaultGlobalConfig provides global default values.
-var DefaultConfig = Config{
-}
+var DefaultConfig = Config{}
 
 type Config struct {
 	Template_data map[string]interface{} `yaml:"template_data,omitempty" json:"template_data,omitempty"`
 	Rules         []*Rule                `yaml:"rules,omitempty" json:"rules,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
-  XXX map[string]interface{} `yaml:",inline" json:"-"`
+	XXX map[string]interface{} `yaml:",inline" json:"-"`
 
 	// original is the input from which the Config was parsed.
 	original string
@@ -103,13 +102,13 @@ type LabelSet map[model.LabelName]model.LabelValue
 type LabelSetRE map[model.LabelName]Regexp
 
 type Rule struct {
-	Tmpl     Template   `yaml:"template,omitempty" json:"template,omitempty"`
-	Match    map[model.LabelName]model.LabelValue   `yaml:"match,omitempty" json:"match,omitempty"`
-	MatchRE  map[model.LabelName]Regexp `yaml:"match_re,omitempty" json:"match_re,omitempty"`
-	Continue bool       `yaml:"continue,omitempty" json:"continue,omitempty"`
+	Tmpl     Template                             `yaml:"template,omitempty" json:"template,omitempty"`
+	Match    map[model.LabelName]model.LabelValue `yaml:"match,omitempty" json:"match,omitempty"`
+	MatchRE  map[model.LabelName]Regexp           `yaml:"match_re,omitempty" json:"match_re,omitempty"`
+	Continue bool                                 `yaml:"continue,omitempty" json:"continue,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
-  XXX map[string]interface{} `yaml:",inline" json:"-"`
+	XXX map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

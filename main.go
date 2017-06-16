@@ -45,7 +45,6 @@ type config struct {
 	remoteWriteTimeout time.Duration
 	listenAddr         string
 	telemetryPath      string
-	snappyFramed       bool
 }
 
 var (
@@ -94,7 +93,7 @@ func main() {
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
 	writers, readers := buildClients(cfg)
-	serve(cfg.listenAddr, cfg.snappyFramed, writers, readers)
+	serve(cfg.listenAddr, writers, readers)
 	log.Infoln("See you next time!")
 }
 
@@ -122,9 +121,6 @@ func parseFlags() *config {
 	)
 	flag.DurationVar(&cfg.remoteReadTimeout, "read-timeout", 30*time.Second,
 		"The timeout to use when reading samples to the remote storage.",
-	)
-	flag.BoolVar(&cfg.snappyFramed, "snappy-framed", false,
-		"Use framed snappy for compression of remote storage requests and responses (for prometheus <2.0).",
 	)
 	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
@@ -160,119 +156,130 @@ func buildClients(cfg *config) ([]writer, []reader) {
 	return writers, readers
 }
 
-func serve(addr string, snappyFramed bool, writers []writer, readers []reader) error {
+func serve(addr string, writers []writer, readers []reader) error {
 	log.Infof("Listening on %v", addr)
+
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
-		log.With("request", r).Debugln("Handling /write request")
-		var reqBuf []byte
-		var err error
-		if snappyFramed {
-			reqBuf, err = ioutil.ReadAll(snappy.NewReader(r.Body))
-		} else {
-			var compressed []byte
-			compressed, err = ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.With("err", err).Warnln("Error reading request body")
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			reqBuf, err = snappy.Decode(nil, compressed)
-		}
-		if err != nil {
-			log.With("err", err).Warnln("Error reading request body")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		var req remote.WriteRequest
-		if err := proto.Unmarshal(reqBuf, &req); err != nil {
-			log.With("err", err).Warnln("Error unmarshaling remote write request")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		samples := protoToSamples(&req)
-		receivedSamples.Add(float64(len(samples)))
-
-		var wg sync.WaitGroup
-		for _, w := range writers {
-			wg.Add(1)
-			go func(rw writer) {
-				sendSamples(rw, samples)
-				wg.Done()
-			}(w)
-		}
-		wg.Wait()
+		write(w, r, writers)
 	})
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		log.With("request", r).Debugln("Handling /read request")
-		var reqBuf []byte
-		var err error
-		if snappyFramed {
-			reqBuf, err = ioutil.ReadAll(snappy.NewReader(r.Body))
-		} else {
-			var compressed []byte
-			compressed, err = ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.With("err", err).Warnln("Error reading request body")
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			reqBuf, err = snappy.Decode(nil, compressed)
-		}
-		if err != nil {
-			log.With("err", err).Warnln("Error reading request body")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		read(w, r, readers)
+	})
 
-		var req remote.ReadRequest
-		if err := proto.Unmarshal(reqBuf, &req); err != nil {
-			log.With("err", err).Warnln("Error unmarshaling remote write request")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// TODO: Support reading from more than one reader and merging the results.
-		if len(readers) != 1 {
-			log.Warnf("expected exactly one reader, found %d readers", len(readers))
-			http.Error(w, fmt.Sprintf("expected exactly one reader, found %d readers", len(readers)), http.StatusInternalServerError)
-			return
-		}
-		reader := readers[0]
-
-		var resp *remote.ReadResponse
-		resp, err = reader.Read(&req)
-		if err != nil {
-			log.With("query", req).With("storage", reader.Name()).With("err", err).Warnf("Error executing query")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		data, err := proto.Marshal(resp)
-		if err != nil {
-			log.With("response", resp).With("err", err).Warnln("Error marshaling remote read response")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/x-protobuf")
-		if snappyFramed {
-			_, err = snappy.NewWriter(w).Write(data)
-		} else {
-			w.Header().Set("Content-Encoding", "snappy")
-			compressed := snappy.Encode(nil, data)
-			_, err = w.Write(compressed)
-		}
-		if err != nil {
-			log.With("data", data).With("err", err).Warnln("Error encoding response body")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		status(w, r, writers, readers)
 	})
 
 	return http.ListenAndServe(addr, nil)
+}
+
+func status(w http.ResponseWriter, r *http.Request, writers []writer, readers []reader) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, "graphite-remote-adapter %s<br/>", version.Info())
+	fmt.Fprintf(w, "Build context %s<br/>", version.BuildContext())
+
+	fmt.Fprintf(w, "Writers:<br/><dl>")
+	for _, v := range writers {
+		fmt.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>", v.Name(), v)
+	}
+	fmt.Fprintf(w, "</dl>")
+	fmt.Fprintf(w, "Readers:<br/><dl>")
+	for _, v := range readers {
+		fmt.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>", v.Name(), v)
+	}
+	fmt.Fprintf(w, "</dl>")
+}
+
+func write(w http.ResponseWriter, r *http.Request, writers []writer) {
+	log.With("request", r).Debugln("Handling /write request")
+	compressed, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.With("err", err).Warnln("Error reading request body")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	reqBuf, err := snappy.Decode(nil, compressed)
+	if err != nil {
+		log.With("err", err).Warnln("Error decoding request body")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req remote.WriteRequest
+	if err := proto.Unmarshal(reqBuf, &req); err != nil {
+		log.With("err", err).Warnln("Error unmarshalling protobuf")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	samples := protoToSamples(&req)
+	receivedSamples.Add(float64(len(samples)))
+
+	var wg sync.WaitGroup
+	for _, w := range writers {
+		wg.Add(1)
+		go func(rw writer) {
+			sendSamples(rw, samples)
+			wg.Done()
+		}(w)
+	}
+	wg.Wait()
+}
+
+func read(w http.ResponseWriter, r *http.Request, readers []reader) {
+	log.With("request", r).Debugln("Handling /read request")
+	compressed, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.With("err", err).Warnln("Error reading request body")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	reqBuf, err := snappy.Decode(nil, compressed)
+	if err != nil {
+		log.With("err", err).Warnln("Error decoding request body")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req remote.ReadRequest
+	if err := proto.Unmarshal(reqBuf, &req); err != nil {
+		log.With("err", err).Warnln("Error unmarshalling protobuf")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// TODO: Support reading from more than one reader and merging the results.
+	if len(readers) != 1 {
+		http.Error(w, fmt.Sprintf("expected exactly one reader, found %d readers", len(readers)), http.StatusInternalServerError)
+		return
+	}
+	reader := readers[0]
+
+	var resp *remote.ReadResponse
+	resp, err = reader.Read(&req)
+	if err != nil {
+		log.With("query", req).With("storage", reader.Name()).With("err", err).Warnf("Error executing query")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data, err := proto.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-protobuf")
+	w.Header().Set("Content-Encoding", "snappy")
+
+	compressed = snappy.Encode(nil, data)
+	if _, err := w.Write(compressed); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func protoToSamples(req *remote.WriteRequest) model.Samples {

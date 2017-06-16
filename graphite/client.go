@@ -48,6 +48,7 @@ type Client struct {
 	graphite_web     string
 	read_timeout     time.Duration
 	prefix           string
+	config           *config.Config
 	rules            []*config.Rule
 	template_data    map[string]interface{}
 	ignoredSamples   prometheus.Counter
@@ -67,11 +68,12 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		graphite_web:     graphite_web,
 		read_timeout:     read_timeout,
 		prefix:           prefix,
+		config:           fileConf,
 		rules:            fileConf.Rules,
 		template_data:    fileConf.Template_data,
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
-				Name: "prometheus_influxdb_ignored_samples_total",
+				Name: "prometheus_graphite_ignored_samples_total",
 				Help: "The total number of samples not sent to InfluxDB due to unsupported float values (Inf, -Inf, NaN).",
 			},
 		),
@@ -165,4 +167,9 @@ func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
 // Name identifies the client as a Graphite client.
 func (c Client) Name() string {
 	return "graphite"
+}
+
+func (c Client) String() string {
+	// TODO: add more stuff here.
+	return c.config.String()
 }
