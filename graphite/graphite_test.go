@@ -31,14 +31,14 @@ var (
 
 	testConfigStr = `
 template_data:
-    shared: data
+    shared: data.foo
 
 rules:
   - match:
       owner: team-X
     match_re:
       testlabel: ^test:.*$
-    template: 'tmpl_1.{{.shared}}.{{.labels.owner}}'
+    template: 'tmpl_1.{{.shared | escape}}.{{.labels.owner}}'
     continue: true
   - match:
       owner: team-X
@@ -67,7 +67,7 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
-	expected = append(expected, "tmpl_1.data.team-X")
+	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
 	actual := pathsFromMetric(metric, "", testConfig.Rules, testConfig.Template_data)
 	if len(actual) != 1 || expected[0] != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
@@ -82,8 +82,8 @@ func TestMultiTemplatedPathsFromMetric(t *testing.T) {
 		"testlabel2":          "test:value2",
 	}
 	expected := make([]string, 0)
-	expected = append(expected, "tmpl_1.data.team-X")
-	expected = append(expected, "tmpl_2.team-X.data")
+	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
+	expected = append(expected, "tmpl_2.team-X.data.foo")
 	actual := pathsFromMetric(multiMatchMetric, "", testConfig.Rules, testConfig.Template_data)
 	if len(actual) != 2 || expected[0] != actual[0] || expected[1] != actual[1] {
 		t.Errorf("Expected %s, got %s", expected, actual)

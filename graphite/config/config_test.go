@@ -14,8 +14,6 @@
 package config
 
 import (
-	"github.com/prometheus/common/model"
-	"reflect"
 	"regexp"
 	"testing"
 	"text/template"
@@ -28,34 +26,34 @@ func prepareExpectedRegexp(s string) Regexp {
 
 func prepareExpectedTemplate(s string) Template {
 	t, _ := template.New("").Funcs(TmplFuncMap).Parse(s)
-	return Template{t}
+	return Template{t, s}
 }
 
-var expectedConf = &FileConfig{
+var expectedConf = &Config{
 	Template_data: map[string]interface{}{
 		"site_mapping": map[string]string{"eu-par": "fr_eqx"},
 	},
 	Rules: []*Rule{
 		{
-			Match: map[model.LabelName]model.LabelValue{
+			Match: LabelSet{
 				"owner": "team-X",
 			},
-			MatchRE: map[model.LabelName]Regexp{
+			MatchRE: LabelSetRE{
 				"service": prepareExpectedRegexp("^(foo1|foo2|baz)$"),
 			},
 			Continue: true,
 			Tmpl:     prepareExpectedTemplate("great.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env \"prod\"}}.{{.labels.env}}{{end}}"),
 		},
 		{
-			Match: map[model.LabelName]model.LabelValue{
+			Match: LabelSet{
 				"owner": "team-X",
 				"env":   "prod",
 			},
 			Continue: true,
-			Tmpl:     prepareExpectedTemplate("bla.bla.{{.labels.owner}}.great.path"),
+			Tmpl:     prepareExpectedTemplate("bla.bla.{{.labels.owner | escape}}.great.path"),
 		},
 		{
-			Match: map[model.LabelName]model.LabelValue{
+			Match: LabelSet{
 				"owner": "team-Z",
 			},
 			Continue: false,
@@ -69,9 +67,10 @@ func TestLoadConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error parsing %s: %s", "testdata/conf.good.yml", err)
 	}
-	expectedConf.original = c.original
+	c.original = ""
 
-	if !reflect.DeepEqual(c.original, expectedConf.original) {
-		t.Fatalf("%s: unexpected config result", "testdata/conf.good.yml")
+	if c.String() != expectedConf.String() {
+		t.Fatalf("%s: unexpected config result: \n%s\nExpecting:\n%s",
+			"testdata/conf.good.yml", c.String(), expectedConf.String())
 	}
 }

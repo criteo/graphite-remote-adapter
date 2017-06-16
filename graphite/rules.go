@@ -36,7 +36,7 @@ func loadContext(template_data map[string]interface{}, m model.Metric) map[strin
 	return template_data
 }
 
-func match(m model.Metric, match map[model.LabelName]model.LabelValue, matchRE map[model.LabelName]config.Regexp) bool {
+func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) bool {
 	for ln, lv := range match {
 		if m[ln] != lv {
 			return false

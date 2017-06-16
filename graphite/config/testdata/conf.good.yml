@@ -12,8 +12,8 @@ rules:
     - match:
         owner: team-X
         env:   prod
-      template: 'bla.bla.{{.labels.owner}}.great.path'
+      template: 'bla.bla.{{.labels.owner | escape}}.great.path'
       continue: true
     - match:
-        env: team-Z
+        owner: team-Z
       continue: false

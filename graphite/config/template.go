@@ -28,11 +28,12 @@ func split(input interface{}, delimiter string) ([]string, error) {
 	return strings.Split(input.(string), delimiter), nil
 }
 
-func escape(input interface{}, delimiter string) string {
+func escape(input interface{}) string {
 	return utils.Escape(input.(string))
 }
 
 var TmplFuncMap = template.FuncMap{
 	"replace": replace,
 	"split":   split,
+	"escape":  escape,
 }
