@@ -114,7 +114,6 @@ func (c *Client) Write(samples model.Samples) error {
 			}
 		}
 	}
-	fmt.Println(buf.String())
 
 	_, err = conn.Write(buf.Bytes())
 	if err != nil {
