@@ -65,6 +65,25 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 	}
 }
 
+func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
+	unmatchedMetric := model.Metric{
+		model.MetricNameLabel: "test:metric",
+		"testlabel":           "test:value",
+		"owner":               "team-Y",
+		"testlabel2":          "test:value2",
+	}
+	expected := make([]string, 0)
+	expected = append(expected, "prefix."+
+		"test:metric"+
+		".owner.team-Y"+
+		".testlabel.test:value"+
+		".testlabel2.test:value2")
+	actual := pathsFromMetric(unmatchedMetric, "prefix.", testConfig.Rules, testConfig.Template_data)
+	if len(actual) != 1 || expected[0] != actual[0] {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
+
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")

@@ -51,8 +51,17 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 }
 
 func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, template_data map[string]interface{}) []string {
-	var paths []string
+	paths, skipped := templatedPaths(m, rules, template_data)
+	// if it doesn't match any rule, use default path
+	if len(paths) == 0 && !skipped {
+		paths = append(paths, defaultPath(m, prefix))
+	}
 
+	return paths
+}
+
+func templatedPaths(m model.Metric, rules []*config.Rule, template_data map[string]interface{}) ([]string, bool) {
+	var paths []string
 	for _, rule := range rules {
 		match := match(m, rule.Match, rule.MatchRE)
 		if !match {
@@ -60,7 +69,7 @@ func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templa
 		}
 		// We have a rule to silence this metric
 		if rule.Continue == false && (rule.Tmpl == config.Template{}) {
-			return nil
+			return nil, true
 		}
 
 		context := loadContext(template_data, m)
@@ -72,13 +81,7 @@ func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templa
 			break
 		}
 	}
-
-	// if it doesn't match any rule, use default path
-	if len(paths) == 0 {
-		paths = append(paths, defaultPath(m, prefix))
-	}
-
-	return paths
+	return paths, false
 }
 
 func defaultPath(m model.Metric, prefix string) string {

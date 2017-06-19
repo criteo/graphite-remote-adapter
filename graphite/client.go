@@ -80,7 +80,7 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 	}
 }
 
-func prepareDataPoint(path string, s *model.Sample, c *Client) string {
+func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 	t := float64(s.Timestamp.UnixNano()) / 1e9
 	v := float64(s.Value)
 	if math.IsNaN(v) || math.IsInf(v, 0) {
@@ -109,8 +109,8 @@ func (c *Client) Write(samples model.Samples) error {
 	for _, s := range samples {
 		paths := pathsFromMetric(s.Metric, c.prefix, c.rules, c.template_data)
 		for _, k := range paths {
-			if str := prepareDataPoint(k, s, c); str != "" {
-				fmt.Fprintf(&buf, str)
+			if str := c.prepareDataPoint(k, s); str != "" {
+				fmt.Fprint(&buf, str)
 			}
 		}
 	}
