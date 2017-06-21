@@ -102,10 +102,10 @@ type LabelSet map[model.LabelName]model.LabelValue
 type LabelSetRE map[model.LabelName]Regexp
 
 type Rule struct {
-	Tmpl     Template                             `yaml:"template,omitempty" json:"template,omitempty"`
-	Match    map[model.LabelName]model.LabelValue `yaml:"match,omitempty" json:"match,omitempty"`
-	MatchRE  map[model.LabelName]Regexp           `yaml:"match_re,omitempty" json:"match_re,omitempty"`
-	Continue bool                                 `yaml:"continue,omitempty" json:"continue,omitempty"`
+	Tmpl     Template   `yaml:"template,omitempty" json:"template,omitempty"`
+	Match    LabelSet   `yaml:"match,omitempty" json:"match,omitempty"`
+	MatchRE  LabelSetRE `yaml:"match_re,omitempty" json:"match_re,omitempty"`
+	Continue bool       `yaml:"continue,omitempty" json:"continue,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`

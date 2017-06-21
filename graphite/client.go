@@ -16,11 +16,11 @@ package graphite
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
-	"net/http"
-	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,7 +30,6 @@ import (
 	"github.com/prometheus/prometheus/storage/remote"
 
 	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 )
@@ -80,7 +79,7 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 	}
 }
 
-func prepareDataPoint(path string, s *model.Sample, c *Client) string {
+func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 	t := float64(s.Timestamp.UnixNano()) / 1e9
 	v := float64(s.Value)
 	if math.IsNaN(v) || math.IsInf(v, 0) {
@@ -109,8 +108,8 @@ func (c *Client) Write(samples model.Samples) error {
 	for _, s := range samples {
 		paths := pathsFromMetric(s.Metric, c.prefix, c.rules, c.template_data)
 		for _, k := range paths {
-			if str := prepareDataPoint(k, s, c); str != "" {
-				fmt.Fprintf(&buf, str)
+			if str := c.prepareDataPoint(k, s); str != "" {
+				fmt.Fprint(&buf, str)
 			}
 		}
 	}
@@ -123,6 +122,78 @@ func (c *Client) Write(samples model.Samples) error {
 	return nil
 }
 
+func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]string, error) {
+	// Parse metric name from query
+	var name string
+	for _, labelMatcher := range query.Matchers {
+		if labelMatcher.Name == model.MetricNameLabel && remote.MatchType_name[int32(labelMatcher.Type)] == "EQUAL" {
+			name = labelMatcher.Value
+		}
+	}
+	if name == "" {
+		err := fmt.Errorf("Invalide remote query: no %s label provided", model.MetricNameLabel)
+		return nil, err
+	}
+
+	// Prepare the url to fetch
+	queryStr := c.prefix + name + ".**"
+	expandUrl := prepareUrl(c.graphite_web, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
+
+	// Get the list of targets
+	expandResponse := ExpandResponse{}
+	body, err := fetchUrl(expandUrl, ctx)
+	err = json.Unmarshal(body, &expandResponse)
+	if err != nil {
+		log.With("url", expandUrl).With("err", err).Warnln("Error parsing expand endpoint response body")
+		return nil, err
+	}
+	return expandResponse.Results, nil
+}
+
+func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*remote.TimeSeries, error) {
+	renderUrl := prepareUrl(c.graphite_web, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
+	renderResponses := make([]RenderResponse, 0)
+	body, err := fetchUrl(renderUrl, ctx)
+	err = json.Unmarshal(body, &renderResponses)
+	if err != nil {
+		log.With("url", renderUrl).With("err", err).Warnln("Error parsing render endpoint response body")
+		return nil, err
+	}
+	renderResponse := renderResponses[0]
+
+	ts := &remote.TimeSeries{}
+	ts.Labels = metricLabelsFromPath(renderResponse.Target, c.prefix)
+	for _, datapoint := range renderResponse.Datapoints {
+		timstamp_ms := datapoint.Timestamp * 1000
+		if datapoint.Value == nil {
+			continue
+		}
+		ts.Samples = append(ts.Samples, &remote.Sample{Value: *datapoint.Value, TimestampMs: timstamp_ms})
+	}
+	return ts, nil
+}
+
+func (c *Client) handleReadQuery(query *remote.Query, ctx context.Context) (*remote.QueryResult, error) {
+	queryResult := &remote.QueryResult{}
+
+	from := strconv.Itoa(int(query.StartTimestampMs / 1000))
+	until := strconv.Itoa(int(query.EndTimestampMs / 1000))
+
+	targets, err := c.queryToTargets(query, ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, target := range targets {
+		ts, err := c.targetToTimeseries(target, from, until, ctx)
+		if err != nil {
+			log.With("target", target).With("err", err).Warnln("Error fetching and parsing target datapoints")
+			continue
+		}
+		queryResult.Timeseries = append(queryResult.Timeseries, ts)
+	}
+	return queryResult, nil
+}
+
 func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
 	log.With("req", req).Debugf("Remote read")
 
@@ -130,37 +201,18 @@ func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
 		return nil, nil
 	}
 
-	u, err := url.Parse(c.graphite_web)
-	if err != nil {
-		return nil, err
-	}
-
-	u.Path = expandEndpoint
-	// TODO: set the query params correctly:
-	// - format=treejson
-	// - leavesOnly=1
-	// - query=<prefix>.<__name__>.**
-
 	ctx, cancel := context.WithTimeout(context.Background(), c.read_timeout)
 	defer cancel()
 
-	hresp, err := ctxhttp.Get(ctx, http.DefaultClient, u.String())
-	if err != nil {
-		return nil, err
+	resp := &remote.ReadResponse{}
+	for _, query := range req.Queries {
+		queryResult, err := c.handleReadQuery(query, ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp.Results = append(resp.Results, queryResult)
 	}
-	defer hresp.Body.Close()
-
-	// TODO: Do post-filtering here and filter the right names, build TimeSeries.
-	// TODO: For each metric, get data (http request to /render?format=json)
-	// TODO: Parse data and build Samples.
-
-	resp := remote.ReadResponse{
-		Results: []*remote.QueryResult{
-			{Timeseries: make([]*remote.TimeSeries, 0, 0)},
-		},
-	}
-
-	return &resp, nil
+	return resp, nil
 }
 
 // Name identifies the client as a Graphite client.

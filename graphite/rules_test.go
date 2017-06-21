@@ -14,9 +14,11 @@
 package graphite
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/storage/remote"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 )
@@ -65,6 +67,25 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 	}
 }
 
+func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
+	unmatchedMetric := model.Metric{
+		model.MetricNameLabel: "test:metric",
+		"testlabel":           "test:value",
+		"owner":               "team-Y",
+		"testlabel2":          "test:value2",
+	}
+	expected := make([]string, 0)
+	expected = append(expected, "prefix."+
+		"test:metric"+
+		".owner.team-Y"+
+		".testlabel.test:value"+
+		".testlabel2.test:value2")
+	actual := pathsFromMetric(unmatchedMetric, "prefix.", testConfig.Rules, testConfig.Template_data)
+	if len(actual) != 1 || expected[0] != actual[0] {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
+
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
@@ -102,5 +123,15 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 	actual := pathsFromMetric(skipedMetric, "", testConfig.Rules, testConfig.Template_data)
 	if len(actual) != 0 {
 		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
+
+func TestMetricLabelsFromPath(t *testing.T) {
+	path := "prometheus-prefix.test.owner.team-X"
+	prefix := "prometheus-prefix"
+	expectedLabels := []*remote.LabelPair{&remote.LabelPair{Name: model.MetricNameLabel, Value: "test"}, &remote.LabelPair{Name: "owner", Value: "team-X"}}
+	actualLabels := metricLabelsFromPath(path, prefix)
+	if !reflect.DeepEqual(expectedLabels, actualLabels) {
+		t.Errorf("Expected %s, got %s", expectedLabels, actualLabels)
 	}
 }

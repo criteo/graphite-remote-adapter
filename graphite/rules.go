@@ -17,8 +17,11 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/storage/remote"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/graphite/utils"
@@ -51,8 +54,17 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 }
 
 func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, template_data map[string]interface{}) []string {
-	var paths []string
+	paths, skipped := templatedPaths(m, rules, template_data)
+	// if it doesn't match any rule, use default path
+	if len(paths) == 0 && !skipped {
+		paths = append(paths, defaultPath(m, prefix))
+	}
 
+	return paths
+}
+
+func templatedPaths(m model.Metric, rules []*config.Rule, template_data map[string]interface{}) ([]string, bool) {
+	var paths []string
 	for _, rule := range rules {
 		match := match(m, rule.Match, rule.MatchRE)
 		if !match {
@@ -60,7 +72,7 @@ func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templa
 		}
 		// We have a rule to silence this metric
 		if rule.Continue == false && (rule.Tmpl == config.Template{}) {
-			return nil
+			return nil, true
 		}
 
 		context := loadContext(template_data, m)
@@ -72,13 +84,7 @@ func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templa
 			break
 		}
 	}
-
-	// if it doesn't match any rule, use default path
-	if len(paths) == 0 {
-		paths = append(paths, defaultPath(m, prefix))
-	}
-
-	return paths
+	return paths, false
 }
 
 func defaultPath(m model.Metric, prefix string) string {
@@ -108,4 +114,22 @@ func defaultPath(m model.Metric, prefix string) string {
 			".%s.%s", string(l), utils.Escape(string(v))))
 	}
 	return buffer.String()
+}
+
+func metricLabelsFromPath(path string, prefix string) []*remote.LabelPair {
+	// It uses the "default" write format to read back (See defaultPath function)
+	// <prefix.><__name__.>[<labelName>.<labelValue>. for each label in alphabetic order]
+	var labels []*remote.LabelPair
+	cleanedPath := strings.TrimPrefix(path, prefix)
+	cleanedPath = strings.Trim(cleanedPath, ".")
+	nodes := strings.Split(cleanedPath, ".")
+	labels = append(labels, &remote.LabelPair{Name: model.MetricNameLabel, Value: nodes[0]})
+	if len(nodes[1:])%2 != 0 {
+		log.With("path", path).With("prefix", prefix).Warnln("Unable to parse labels from path: odd number of nodes in path")
+		return labels
+	}
+	for i := 1; i < len(nodes); i += 2 {
+		labels = append(labels, &remote.LabelPair{Name: nodes[i], Value: nodes[i+1]})
+	}
+	return labels
 }
