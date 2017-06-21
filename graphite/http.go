@@ -23,6 +23,9 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
+// make it mockable in tests
+var fetchUrl = FetchUrl
+
 func prepareUrl(host string, path string, params map[string]string) *url.URL {
 	values := url.Values{}
 	for k, v := range params {
@@ -37,7 +40,7 @@ func prepareUrl(host string, path string, params map[string]string) *url.URL {
 	}
 }
 
-func fetchUrl(u *url.URL, ctx context.Context) ([]byte, error) {
+func FetchUrl(u *url.URL, ctx context.Context) ([]byte, error) {
 	// TODO (t.chataigner) Add support for basic auth + proxy
 	hresp, err := ctxhttp.Get(ctx, http.DefaultClient, u.String())
 	if err != nil {
