@@ -101,8 +101,8 @@ func parseFlags() *config {
 	log.Infoln("Parsing flags")
 	cfg := &config{}
 
-	flag.StringVar(&cfg.configFile, "config-file", "graphite-remote-adapter.yml",
-		"Graphite remote adapter configuration file name.",
+	flag.StringVar(&cfg.configFile, "config-file", "",
+		"Graphite remote adapter configuration file name. None, if empty.",
 	)
 	flag.StringVar(&cfg.carbonAddress, "carbon-address", "",
 		"The host:port of the Graphite server to send samples to. None, if empty.",

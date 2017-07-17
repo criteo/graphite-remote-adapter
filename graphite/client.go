@@ -56,9 +56,13 @@ type Client struct {
 // NewClient creates a new Client.
 func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
 	graphite_web string, read_timeout time.Duration, prefix string, configFile string) *Client {
-	fileConf, err := config.LoadFile(configFile)
-	if err != nil {
-		log.With("err", err).Warnln("Error loading config file")
+	fileConf := &config.Config{}
+	if configFile != "" {
+		var err error
+		fileConf, err = config.LoadFile(configFile)
+		if err != nil {
+			log.With("err", err).Warnln("Error loading config file")
+		}
 	}
 	return &Client{
 		carbon:           carbon,
