@@ -33,7 +33,7 @@ Graphite example:
 ```
 ./graphite-remote-adapter \
   -carbon-address localhost:2001 \
-  -graphite-url http://localhost:8080/ \
+  -graphite-url http://guest:guest@localhost:8080/ \
   -read-timeout 10s -write-timeout 5s \
   -graphite-prefix prometheus.
 ```
