@@ -149,6 +149,9 @@ func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]str
 	// Get the list of targets
 	expandResponse := ExpandResponse{}
 	body, err := fetchUrl(expandUrl, ctx)
+	if err != nil {
+		log.With("url", expandUrl).With("err", err).Warnln("Error fetch URL")
+	}
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
 		log.With("url", expandUrl).With("err", err).Warnln("Error parsing expand endpoint response body")
@@ -165,6 +168,9 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 
 	renderResponses := make([]RenderResponse, 0)
 	body, err := fetchUrl(renderUrl, ctx)
+	if err != nil {
+		log.With("url", body).With("err", err).Warnln("Error fetch URL")
+	}
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
 		log.With("url", renderUrl).With("err", err).Warnln("Error parsing render endpoint response body")

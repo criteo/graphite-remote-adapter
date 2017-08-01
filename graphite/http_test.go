@@ -23,6 +23,7 @@ func TestPrepareUrl(t *testing.T) {
 	assert.Equal(t, "http", url.Scheme, "http scheme")
 	assert.Equal(t, "host:1234", url.Host, "host:port")
 	assert.NotEmpty(t, url.User, "userinfo are used")
+	assert.Equal(t, "http://guest:guest@host:1234/a?", url.String())
 
 	url, err = prepareUrl("https://guest:guest@host:1234", "a", map[string]string{})
 	assert.Nil(t, err, "No Error")
