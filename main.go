@@ -93,7 +93,11 @@ func main() {
 	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
 	writers, readers := buildClients(cfg)
-	serve(cfg.listenAddr, writers, readers)
+	if len(writers) != 0 || len(readers) != 0 {
+		serve(cfg.listenAddr, writers, readers)
+	} else {
+		log.Warnln("No reader nor writer, leaving")
+	}
 	log.Infoln("See you next time!")
 }
 
@@ -149,8 +153,10 @@ func buildClients(cfg *config) ([]writer, []reader) {
 			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
 			cfg.graphiteWebURL, cfg.remoteReadTimeout,
 			cfg.graphitePrefix, cfg.configFile)
-		writers = append(writers, c)
-		readers = append(readers, c)
+		if c != nil {
+			writers = append(writers, c)
+			readers = append(readers, c)
+		}
 	}
 	log.With("num_writers", len(writers)).With("num_readers", len(readers)).Infof("Built clients")
 	return writers, readers

@@ -62,6 +62,7 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		fileConf, err = config.LoadFile(configFile)
 		if err != nil {
 			log.With("err", err).Warnln("Error loading config file")
+			return nil
 		}
 	}
 	return &Client{
