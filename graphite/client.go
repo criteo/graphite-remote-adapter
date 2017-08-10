@@ -46,6 +46,7 @@ type Client struct {
 	write_timeout    time.Duration
 	graphite_web     string
 	read_timeout     time.Duration
+	read_delay       time.Duration
 	prefix           string
 	config           *config.Config
 	rules            []*config.Rule
@@ -55,7 +56,8 @@ type Client struct {
 
 // NewClient creates a new Client.
 func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
-	graphite_web string, read_timeout time.Duration, prefix string, configFile string) *Client {
+	graphite_web string, read_timeout time.Duration, prefix string, configFile string,
+	read_delay time.Duration) *Client {
 	fileConf := &config.Config{}
 	if configFile != "" {
 		var err error
@@ -71,6 +73,7 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		write_timeout:    write_timeout,
 		graphite_web:     graphite_web,
 		read_timeout:     read_timeout,
+		read_delay:       read_delay,
 		prefix:           prefix,
 		config:           fileConf,
 		rules:            fileConf.Rules,
@@ -181,15 +184,22 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 func (c *Client) handleReadQuery(query *remote.Query, ctx context.Context) (*remote.QueryResult, error) {
 	queryResult := &remote.QueryResult{}
 
-	from := strconv.Itoa(int(query.StartTimestampMs / 1000))
-	until := strconv.Itoa(int(query.EndTimestampMs / 1000))
+	from := int(query.StartTimestampMs / 1000)
+	until := int(query.EndTimestampMs / 1000)
+	until -= int(c.read_delay.Seconds())
+	if until < from {
+		log.Debugf("No graphite request to do")
+		return queryResult, nil
+	}
+	from_str := strconv.Itoa(from)
+	until_str := strconv.Itoa(until)
 
 	targets, err := c.queryToTargets(query, ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, target := range targets {
-		ts, err := c.targetToTimeseries(target, from, until, ctx)
+		ts, err := c.targetToTimeseries(target, from_str, until_str, ctx)
 		if err != nil {
 			log.With("target", target).With("err", err).Warnln("Error fetching and parsing target datapoints")
 			continue

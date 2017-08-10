@@ -43,6 +43,7 @@ type config struct {
 	graphitePrefix     string
 	remoteReadTimeout  time.Duration
 	remoteWriteTimeout time.Duration
+	remoteReadDelay    time.Duration
 	listenAddr         string
 	telemetryPath      string
 }
@@ -126,6 +127,9 @@ func parseFlags() *config {
 	flag.DurationVar(&cfg.remoteReadTimeout, "read-timeout", 30*time.Second,
 		"The timeout to use when reading samples to the remote storage.",
 	)
+	flag.DurationVar(&cfg.remoteReadDelay, "read-delay", 3600*time.Second,
+		"Ignore all requests which are newer than parameter",
+	)
 	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
 
@@ -152,7 +156,8 @@ func buildClients(cfg *config) ([]writer, []reader) {
 		c := graphite.NewClient(
 			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
 			cfg.graphiteWebURL, cfg.remoteReadTimeout,
-			cfg.graphitePrefix, cfg.configFile)
+			cfg.graphitePrefix, cfg.configFile,
+			cfg.remoteReadDelay)
 		if c != nil {
 			writers = append(writers, c)
 			readers = append(readers, c)
