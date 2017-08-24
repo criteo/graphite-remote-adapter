@@ -28,15 +28,16 @@ import (
 )
 
 func loadContext(template_data map[string]interface{}, m model.Metric) map[string]interface{} {
-	if template_data == nil {
-		template_data = make(map[string]interface{})
+	ctx := make(map[string]interface{})
+	for k, v := range template_data {
+		ctx[k] = v
 	}
 	labels := make(map[string]string)
 	for ln, lv := range m {
 		labels[string(ln)] = string(lv)
 	}
-	template_data["labels"] = labels
-	return template_data
+	ctx["labels"] = labels
+	return ctx
 }
 
 func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) bool {
