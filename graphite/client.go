@@ -81,7 +81,7 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "prometheus_graphite_ignored_samples_total",
-				Help: "The total number of samples not sent to InfluxDB due to unsupported float values (Inf, -Inf, NaN).",
+				Help: "The total number of samples not sent to Graphite due to unsupported float values (Inf, -Inf, NaN).",
 			},
 		),
 	}
