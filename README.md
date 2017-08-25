@@ -11,8 +11,9 @@ You can either `go get` it:
 
 ```
 $ GO15VENDOREXPERIMENT=1 go get github.com/criteo/graphite-remote-adapter/cmd/...
-# cd $GOPATH/src/github.com/criteo/graphite-remote-adapter
-$ graphite-remote-adapter -config.file=<your_file>
+$ cd $GOPATH/src/github.com/criteo/graphite-remote-adapter
+$ make build
+$ ./graphite-remote-adapter -graphite-url=localhost:2003
 ```
 
 Or checkout the source code and build manually:
@@ -23,7 +24,7 @@ $ cd $GOPATH/src/github.com/criteo
 $ git clone https://github.com/criteo/graphite-remote-adapter.git
 $ cd graphite-remote-adapter
 $ make build
-$ ./graphite-remote-adapter -graphite--address=localhost:2003
+$ ./graphite-remote-adapter -graphite-url=localhost:2003
 ```
 
 ## Running
@@ -35,13 +36,14 @@ Graphite example:
   -carbon-address localhost:2001 \
   -graphite-url http://guest:guest@localhost:8080/ \
   -read-timeout 10s -write-timeout 5s \
+  -read-delay 3600s \
   -graphite-prefix prometheus.
 ```
 
 To show all flags:
 
 ```
-./graphite-storage-adapter -h
+./graphite-remote-adapter -h
 ```
 
 ## Example
