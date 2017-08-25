@@ -201,6 +201,12 @@
 			"revisionTime": "2017-05-06T18:27:58Z"
 		},
 		{
+			"checksumSHA1": "JVGDxPn66bpe6xEiexs1r+y6jF0=",
+			"path": "github.com/patrickmn/go-cache",
+			"revision": "a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0",
+			"revisionTime": "2017-07-22T04:01:10Z"
+		},
+		{
 			"checksumSHA1": "8oKQtUZLRuxPAQ9bHKqPkOda0hM=",
 			"path": "github.com/prometheus/client_golang/prometheus",
 			"revision": "de4d4ffe63b9eff7f27484fdef6e421597e6abb4",

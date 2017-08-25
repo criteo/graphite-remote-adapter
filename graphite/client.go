@@ -57,7 +57,8 @@ type Client struct {
 // NewClient creates a new Client.
 func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
 	graphite_web string, read_timeout time.Duration, prefix string, configFile string,
-	read_delay time.Duration) *Client {
+	read_delay time.Duration, usePathsCache bool, pathsCacheExpiration time.Duration,
+	pathsCachePurge time.Duration) *Client {
 	fileConf := &config.Config{}
 	if configFile != "" {
 		var err error
@@ -66,6 +67,9 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 			log.With("err", err).Warnln("Error loading config file")
 			return nil
 		}
+	}
+	if usePathsCache {
+		initPathsCache(pathsCacheExpiration, pathsCachePurge)
 	}
 	return &Client{
 		carbon:           carbon,
