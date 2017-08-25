@@ -26,18 +26,27 @@ import (
 // make it mockable in tests
 var fetchUrl = FetchUrl
 
-func prepareUrl(host string, path string, params map[string]string) *url.URL {
+func prepareUrl(host_base_url string, path string, params map[string]string) (*url.URL, error) {
 	values := url.Values{}
 	for k, v := range params {
 		values.Set(k, v)
 	}
-	return &url.URL{
-		Scheme:     "http",
-		Host:       host,
-		Path:       path,
-		ForceQuery: true,
-		RawQuery:   values.Encode(),
+
+	//for backward compatibility of url configuration (before only host:port)
+	if host_base_url[:7] != "http://" && host_base_url[:8] != "https://" {
+		host_base_url = "http://" + host_base_url
 	}
+
+	host_url, err := url.Parse(host_base_url)
+	if err != nil {
+		return nil, err
+	}
+
+	host_url.ForceQuery = true
+	host_url.Path = path
+	host_url.RawQuery = values.Encode()
+
+	return host_url, nil
 }
 
 func FetchUrl(u *url.URL, ctx context.Context) ([]byte, error) {

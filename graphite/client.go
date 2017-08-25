@@ -145,11 +145,17 @@ func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]str
 
 	// Prepare the url to fetch
 	queryStr := c.prefix + name + ".**"
-	expandUrl := prepareUrl(c.graphite_web, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
+	expandUrl, err := prepareUrl(c.graphite_web, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
+	if err != nil {
+		return nil, err
+	}
 
 	// Get the list of targets
 	expandResponse := ExpandResponse{}
 	body, err := fetchUrl(expandUrl, ctx)
+	if err != nil {
+		log.With("url", expandUrl).With("err", err).Warnln("Error fetch URL")
+	}
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
 		log.With("url", expandUrl).With("err", err).Warnln("Error parsing expand endpoint response body")
@@ -159,9 +165,16 @@ func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]str
 }
 
 func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*remote.TimeSeries, error) {
-	renderUrl := prepareUrl(c.graphite_web, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
+	renderUrl, err := prepareUrl(c.graphite_web, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
+	if err != nil {
+		return nil, err
+	}
+
 	renderResponses := make([]RenderResponse, 0)
 	body, err := fetchUrl(renderUrl, ctx)
+	if err != nil {
+		log.With("url", body).With("err", err).Warnln("Error fetch URL")
+	}
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
 		log.With("url", renderUrl).With("err", err).Warnln("Error parsing render endpoint response body")
