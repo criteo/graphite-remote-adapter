@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
@@ -25,7 +26,20 @@ import (
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/graphite/utils"
+
+	"github.com/patrickmn/go-cache"
 )
+
+var (
+	paths_cache         *cache.Cache
+	paths_cache_enabled = false
+)
+
+func initPathsCache(pathsCacheExpiration time.Duration, pathsCachePurge time.Duration) {
+	paths_cache = cache.New(pathsCacheExpiration, pathsCachePurge)
+	paths_cache_enabled = true
+	log.Infof("Paths cache initialized with %s expiration duration and %s cleanup interval", pathsCacheExpiration.String(), pathsCachePurge.String())
+}
 
 func loadContext(template_data map[string]interface{}, m model.Metric) map[string]interface{} {
 	ctx := make(map[string]interface{})
@@ -55,12 +69,20 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 }
 
 func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, template_data map[string]interface{}) []string {
+	if paths_cache_enabled {
+		cached_assertion, cached := paths_cache.Get(m.Fingerprint().String())
+		if cached {
+			return cached_assertion.([]string)
+		}
+	}
 	paths, skipped := templatedPaths(m, rules, template_data)
 	// if it doesn't match any rule, use default path
 	if len(paths) == 0 && !skipped {
 		paths = append(paths, defaultPath(m, prefix))
 	}
-
+	if paths_cache_enabled {
+		paths_cache.Set(m.Fingerprint().String(), paths, cache.DefaultExpiration)
+	}
 	return paths
 }
 
