@@ -131,7 +131,7 @@ func parseFlags() *config {
 		"The timeout to use when reading samples to the remote storage.",
 	)
 	flag.DurationVar(&cfg.remoteReadDelay, "read-delay", 3600*time.Second,
-		"Ignore all requests which are newer than parameter",
+		"Ignore all read requests from now to delay",
 	)
 	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
