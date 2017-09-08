@@ -185,14 +185,24 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 	return ts, nil
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func (c *Client) handleReadQuery(query *remote.Query, ctx context.Context) (*remote.QueryResult, error) {
 	queryResult := &remote.QueryResult{}
 
+	now := int(time.Now().Unix())
 	from := int(query.StartTimestampMs / 1000)
 	until := int(query.EndTimestampMs / 1000)
-	until -= int(c.read_delay.Seconds())
+	delta := int(c.read_delay.Seconds())
+	until = min(now-delta, until)
+
 	if until < from {
-		log.Debugf("No graphite request to do")
+		log.Debugf("Skipping query with empty time range")
 		return queryResult, nil
 	}
 	from_str := strconv.Itoa(from)
