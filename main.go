@@ -47,6 +47,7 @@ type config struct {
 	listenAddr           string
 	telemetryPath        string
 	usePathsCache        bool
+	ignoreReadError      bool
 	pathsCacheExpiration time.Duration
 	pathsCachePurge      time.Duration
 }
@@ -98,7 +99,7 @@ func main() {
 
 	writers, readers := buildClients(cfg)
 	if len(writers) != 0 || len(readers) != 0 {
-		serve(cfg.listenAddr, writers, readers)
+		serve(cfg, writers, readers)
 	} else {
 		log.Warnln("No reader nor writer, leaving")
 	}
@@ -137,6 +138,10 @@ func parseFlags() *config {
 	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
 	flag.BoolVar(&cfg.usePathsCache, "use-paths-cache", false,
 		"Use a cache to store metrics paths lists.",
+	)
+	flag.BoolVar(&cfg.ignoreReadError, "ignore-read-error", false,
+		"Ignore all read errors and return empty results instead. When enabled "+
+			"prometheus will display only local points instead of returning an error.",
 	)
 	flag.DurationVar(&cfg.pathsCacheExpiration, "paths-cache-expiration", 3600*time.Second,
 		"Expiration of items within the paths cache.",
@@ -180,22 +185,22 @@ func buildClients(cfg *config) ([]writer, []reader) {
 	return writers, readers
 }
 
-func serve(addr string, writers []writer, readers []reader) error {
-	log.Infof("Listening on %v", addr)
+func serve(cfg *config, writers []writer, readers []reader) error {
+	log.Infof("Listening on %v", cfg.listenAddr)
 
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
 		write(w, r, writers)
 	})
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		read(w, r, readers)
+		read(w, r, readers, cfg.ignoreReadError)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		status(w, r, writers, readers)
 	})
 
-	return http.ListenAndServe(addr, nil)
+	return http.ListenAndServe(cfg.listenAddr, nil)
 }
 
 func status(w http.ResponseWriter, r *http.Request, writers []writer, readers []reader) {
@@ -252,7 +257,7 @@ func write(w http.ResponseWriter, r *http.Request, writers []writer) {
 	wg.Wait()
 }
 
-func read(w http.ResponseWriter, r *http.Request, readers []reader) {
+func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_error bool) {
 	log.With("request", r).Debugln("Handling /read request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -286,8 +291,16 @@ func read(w http.ResponseWriter, r *http.Request, readers []reader) {
 	resp, err = reader.Read(&req)
 	if err != nil {
 		log.With("query", req).With("storage", reader.Name()).With("err", err).Warnf("Error executing query")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if ignore_read_error == false {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} else {
+			resp = &remote.ReadResponse{
+				Results: []*remote.QueryResult{
+					{Timeseries: make([]*remote.TimeSeries, 0, 0)},
+				},
+			}
+		}
 	}
 
 	data, err := proto.Marshal(resp)
