@@ -28,10 +28,21 @@ import (
 
 var (
 	client = &Client{
-		graphite_web: "fakeHost:6666",
+		graphite_web: "http://fakeHost:6666",
 		prefix:       "prometheus-prefix.",
 	}
 )
+
+func TestPrepareUrl(t *testing.T) {
+	expectedUrl := "https://guest:guest@greathost:83232/my/path?q=query&toto=lulu"
+
+	u, _ := prepareUrl("https://guest:guest@greathost:83232", "/my/path", map[string]string{"q": "query", "toto": "lulu"})
+	actualUrl := u.String()
+
+	if actualUrl != expectedUrl {
+		t.Errorf("Expected %s, got %s", expectedUrl, actualUrl)
+	}
+}
 
 func fakeFetchExpandUrl(u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer
