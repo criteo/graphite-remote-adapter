@@ -26,22 +26,24 @@ import (
 // make it mockable in tests
 var fetchUrl = FetchUrl
 
-func prepareUrl(host string, path string, params map[string]string) *url.URL {
+func prepareUrl(scheme_host string, path string, params map[string]string) (*url.URL, error) {
 	values := url.Values{}
 	for k, v := range params {
 		values.Set(k, v)
 	}
-	return &url.URL{
-		Scheme:     "http",
-		Host:       host,
-		Path:       path,
-		ForceQuery: true,
-		RawQuery:   values.Encode(),
+	u, err := url.Parse(scheme_host)
+	if err != nil {
+		return nil, err
 	}
+
+	u.ForceQuery = true
+	u.Path = path
+	u.RawQuery = values.Encode()
+
+	return u, nil
 }
 
 func FetchUrl(u *url.URL, ctx context.Context) ([]byte, error) {
-	// TODO (t.chataigner) Add support for basic auth + proxy
 	hresp, err := ctxhttp.Get(ctx, http.DefaultClient, u.String())
 	if err != nil {
 		return nil, err
