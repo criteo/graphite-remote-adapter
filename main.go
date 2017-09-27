@@ -37,6 +37,7 @@ import (
 
 	"github.com/prometheus/prometheus/prompb"
 
+	"github.com/criteo/graphite-remote-adapter/client"
 	"github.com/criteo/graphite-remote-adapter/graphite"
 )
 
@@ -95,7 +96,7 @@ func init() {
 	prometheus.MustRegister(sentBatchDuration)
 }
 
-func reload(cfg *config, writers []writer, readers []reader) error {
+func reload(cfg *config, writers []client.Writer, readers []client.Reader) error {
 	for _, v := range readers {
 		if err := v.ReloadConfig(cfg.configFile); err != nil {
 			return err
@@ -220,22 +221,10 @@ func parseFlags() *config {
 	return cfg
 }
 
-type writer interface {
-	Write(samples model.Samples) error
-	Name() string
-	ReloadConfig(configFile string) error
-}
-
-type reader interface {
-	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
-	Name() string
-	ReloadConfig(configFile string) error
-}
-
-func buildClients(cfg *config) ([]writer, []reader) {
+func buildClients(cfg *config) ([]client.Writer, []client.Reader) {
 	log.With("cfg", cfg).Infof("Building clients")
-	var writers []writer
-	var readers []reader
+	var writers []client.Writer
+	var readers []client.Reader
 	if cfg.carbonAddress != "" || cfg.graphiteWebURL != "" {
 		c := graphite.NewClient(
 			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
@@ -252,7 +241,7 @@ func buildClients(cfg *config) ([]writer, []reader) {
 	return writers, readers
 }
 
-func serve(cfg *config, writers []writer, readers []reader) error {
+func serve(cfg *config, writers []client.Writer, readers []client.Reader) error {
 	log.Infof("Listening on %v", cfg.listenAddr)
 
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
@@ -270,7 +259,7 @@ func serve(cfg *config, writers []writer, readers []reader) error {
 	return http.ListenAndServe(cfg.listenAddr, nil)
 }
 
-func status(w http.ResponseWriter, r *http.Request, cfg *config, writers []writer, readers []reader) {
+func status(w http.ResponseWriter, r *http.Request, cfg *config, writers []client.Writer, readers []client.Reader) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
 <!DOCTYPE html>
@@ -318,7 +307,7 @@ func status(w http.ResponseWriter, r *http.Request, cfg *config, writers []write
 `)
 }
 
-func write(w http.ResponseWriter, r *http.Request, writers []writer) {
+func write(w http.ResponseWriter, r *http.Request, writers []client.Writer) {
 	log.With("request", r).Debugln("Handling /write request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -347,7 +336,7 @@ func write(w http.ResponseWriter, r *http.Request, writers []writer) {
 	var wg sync.WaitGroup
 	for _, w := range writers {
 		wg.Add(1)
-		go func(rw writer) {
+		go func(rw client.Writer) {
 			sendSamples(rw, samples)
 			wg.Done()
 		}(w)
@@ -355,7 +344,7 @@ func write(w http.ResponseWriter, r *http.Request, writers []writer) {
 	wg.Wait()
 }
 
-func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_error bool) {
+func read(w http.ResponseWriter, r *http.Request, readers []client.Reader, ignore_read_error bool) {
 	log.With("request", r).Debugln("Handling /read request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -436,7 +425,7 @@ func protoToSamples(req *prompb.WriteRequest) model.Samples {
 	return samples
 }
 
-func sendSamples(w writer, samples model.Samples) {
+func sendSamples(w client.Writer, samples model.Samples) {
 	begin := time.Now()
 	err := w.Write(samples)
 	duration := time.Since(begin).Seconds()
