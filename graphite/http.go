@@ -15,53 +15,15 @@ package graphite
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 
-	"github.com/prometheus/common/log"
-
-	"golang.org/x/net/context"
-	"golang.org/x/net/context/ctxhttp"
+	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
 // make it mockable in tests
-var fetchUrl = FetchUrl
-
-func prepareUrl(scheme_host string, path string, params map[string]string) (*url.URL, error) {
-	values := url.Values{}
-	for k, v := range params {
-		values.Set(k, v)
-	}
-	u, err := url.Parse(scheme_host)
-	if err != nil {
-		return nil, err
-	}
-
-	u.ForceQuery = true
-	u.Path = path
-	u.RawQuery = values.Encode()
-
-	return u, nil
-}
-
-func FetchUrl(u *url.URL, ctx context.Context) ([]byte, error) {
-	log.With("url", u).With("context", ctx).Debugln("Fetching URL")
-
-	hresp, err := ctxhttp.Get(ctx, http.DefaultClient, u.String())
-	if err != nil {
-		return nil, err
-	}
-	defer hresp.Body.Close()
-
-	body, err := ioutil.ReadAll(hresp.Body)
-	log.With("len(body)", len(body)).With("err", err).Debugln("Fetched")
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
-}
+var (
+	fetchURL   = utils.FetchURL
+	prepareURL = utils.PrepareURL
+)
 
 type ExpandResponse struct {
 	Results []string `yaml:"results,omitempty" json:"results,omitempty"`
