@@ -33,21 +33,21 @@ var (
 	}
 )
 
-func TestPrepareUrl(t *testing.T) {
-	expectedUrl := "https://guest:guest@greathost:83232/my/path?q=query&toto=lulu"
+func TestPrepareURL(t *testing.T) {
+	expectedURL := "https://guest:guest@greathost:83232/my/path?q=query&toto=lulu"
 
-	u, _ := prepareUrl(
+	u, _ := prepareURL(
 		"https://guest:guest@greathost:83232", "/my/path",
 		map[string]string{"q": "query", "toto": "lulu"},
 	)
-	actualUrl := u.String()
+	actualURL := u.String()
 
-	if actualUrl != expectedUrl {
-		t.Errorf("Expected %s, got %s", expectedUrl, actualUrl)
+	if actualURL != expectedURL {
+		t.Errorf("Expected %s, got %s", expectedURL, actualURL)
 	}
 }
 
-func fakeFetchExpandUrl(u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchExpandURL(u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/metrics/expand?format=json&leavesOnly=1&query=prometheus-prefix.test.%2A%2A" {
 		body.WriteString("{\"results\": [\"prometheus-prefix.test.owner.team-X\", \"prometheus-prefix.test.owner.team-Y\"]}")
@@ -55,7 +55,7 @@ func fakeFetchExpandUrl(u *url.URL, ctx context.Context) ([]byte, error) {
 	return body.Bytes(), nil
 }
 
-func fakeFetchRenderUrl(u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchRenderURL(u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/render/?format=json&from=0&target=prometheus-prefix.test.owner.team-X&until=300" {
 		body.WriteString("[{\"target\": \"prometheus-prefix.test.owner.team-X\", \"datapoints\": [[18,0], [42,300]]}]")
@@ -64,7 +64,7 @@ func fakeFetchRenderUrl(u *url.URL, ctx context.Context) ([]byte, error) {
 }
 
 func TestQueryToTargets(t *testing.T) {
-	fetchUrl = fakeFetchExpandUrl
+	fetchURL = fakeFetchExpandURL
 	expectedTargets := []string{"prometheus-prefix.test.owner.team-X", "prometheus-prefix.test.owner.team-Y"}
 
 	labelMatchers := []*prompb.LabelMatcher{
@@ -106,7 +106,7 @@ func TestInvalideQueryToTargets(t *testing.T) {
 }
 
 func TestTargetToTimeseries(t *testing.T) {
-	fetchUrl = fakeFetchRenderUrl
+	fetchURL = fakeFetchRenderURL
 	expectedTs := &prompb.TimeSeries{
 		Labels: []*prompb.Label{
 			&prompb.Label{Name: model.MetricNameLabel, Value: "test"},

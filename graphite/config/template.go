@@ -17,7 +17,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/criteo/graphite-remote-adapter/graphite/utils"
+	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
 func replace(input interface{}, from string, to string) string {
@@ -32,6 +32,7 @@ func escape(input interface{}) string {
 	return utils.Escape(input.(string))
 }
 
+// TmplFuncMap expose custom go template functions
 var TmplFuncMap = template.FuncMap{
 	"replace": replace,
 	"split":   split,
