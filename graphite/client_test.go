@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/criteo/graphite-remote-adapter/graphite/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 
@@ -28,24 +29,15 @@ import (
 
 var (
 	client = &Client{
-		graphite_web: "http://fakeHost:6666",
-		prefix:       "prometheus-prefix.",
+		cfg: &config.Config{
+			DefaultPrefix: "prometheus-prefix.",
+			Write:         config.WriteConfig{},
+			Read: config.ReadConfig{
+				URL: "http://fakeHost:6666",
+			},
+		},
 	}
 )
-
-func TestPrepareURL(t *testing.T) {
-	expectedURL := "https://guest:guest@greathost:83232/my/path?q=query&toto=lulu"
-
-	u, _ := prepareURL(
-		"https://guest:guest@greathost:83232", "/my/path",
-		map[string]string{"q": "query", "toto": "lulu"},
-	)
-	actualURL := u.String()
-
-	if actualURL != expectedURL {
-		t.Errorf("Expected %s, got %s", expectedURL, actualURL)
-	}
-}
 
 func fakeFetchExpandURL(u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer

@@ -15,69 +15,40 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"regexp"
-	"strings"
 	"text/template"
+	"time"
 
 	"encoding/json"
 
-	"github.com/prometheus/common/log"
+	"github.com/criteo/graphite-remote-adapter/utils"
 	"github.com/prometheus/common/model"
 
 	"gopkg.in/yaml.v2"
 )
 
-func checkOverflow(m map[string]interface{}, ctx string) error {
-	if len(m) > 0 {
-		var keys []string
-		for k := range m {
-			keys = append(keys, k)
-		}
-		return fmt.Errorf("unknown fields in %s: %s", ctx, strings.Join(keys, ", "))
-	}
-	return nil
+// DefaultGraphiteConfig provides global default values.
+var DefaultConfig = Config{
+	DefaultPrefix: "",
+	Write: WriteConfig{
+		CarbonAddress:           "",
+		CarbonTransport:         "tcp",
+		EnablePathsCache:        true,
+		PathsCacheTTL:           1 * time.Hour,
+		PathsCachePurgeInterval: 2 * time.Hour,
+	},
+	Read: ReadConfig{
+		URL: "",
+	},
 }
-
-// Load parses the YAML input s into a Config.
-func Load(s string) (*Config, error) {
-	cfg := &Config{}
-	err := yaml.Unmarshal([]byte(s), cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.original = s
-	return cfg, nil
-}
-
-// LoadFile parses the given YAML file into a Config.
-func LoadFile(filename string) (*Config, error) {
-	log.With("file", filename).Infof("Loading configuration file")
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	cfg, err := Load(string(content))
-	if err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
-}
-
-// DefaultGlobalConfig provides global default values.
-var DefaultConfig = Config{}
 
 type Config struct {
-	Template_data map[string]interface{} `yaml:"template_data,omitempty" json:"template_data,omitempty"`
-	Rules         []*Rule                `yaml:"rules,omitempty" json:"rules,omitempty"`
+	Write         WriteConfig `yaml:"write,omitempty" json:"write,omitempty"`
+	Read          ReadConfig  `yaml:"read,omitempty" json:"read,omitempty"`
+	DefaultPrefix string      `yaml:"default_prefix,omitempty" json:"default_prefix,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`
-
-	// original is the input from which the Config was parsed.
-	original string
 }
 
 func (c Config) String() string {
@@ -95,7 +66,47 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return checkOverflow(c.XXX, "config")
+	return utils.CheckOverflow(c.XXX, "graphite config")
+}
+
+type ReadConfig struct {
+	URL string `yaml:"url,omitempty" json:"url,omitempty"`
+
+	// Catches all undefined fields and must be empty after parsing.
+	XXX map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (c *ReadConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain ReadConfig
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+
+	return utils.CheckOverflow(c.XXX, "readConfig")
+}
+
+type WriteConfig struct {
+	CarbonAddress           string                 `yaml:"carbon_address,omitempty" json:"carbon_address,omitempty"`
+	CarbonTransport         string                 `yaml:"carbon_transport,omitempty" json:"carbon_transport,omitempty"`
+	EnablePathsCache        bool                   `yaml:"enable_paths_cache,omitempty" json:"enable_paths_cache,omitempty"`
+	PathsCacheTTL           time.Duration          `yaml:"paths_cache_ttl,omitempty" json:"paths_cache_ttl,omitempty"`
+	PathsCachePurgeInterval time.Duration          `yaml:"paths_cache_purge_interval,omitempty" json:"paths_cache_purge_interval,omitempty"`
+	TemplateData            map[string]interface{} `yaml:"template_data,omitempty" json:"template_data,omitempty"`
+	Rules                   []*Rule                `yaml:"rules,omitempty" json:"rules,omitempty"`
+
+	// Catches all undefined fields and must be empty after parsing.
+	XXX map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (c *WriteConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain WriteConfig
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+
+	return utils.CheckOverflow(c.XXX, "writeConfig")
 }
 
 type LabelSet map[model.LabelName]model.LabelValue
@@ -118,7 +129,7 @@ func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	return checkOverflow(r.XXX, "rule")
+	return utils.CheckOverflow(r.XXX, "rule")
 }
 
 type Template struct {
@@ -132,7 +143,7 @@ func (tmpl *Template) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	template, err := template.New("").Funcs(TmplFuncMap).Parse(s)
+	template, err := template.New("").Funcs(utils.TmplFuncMap).Parse(s)
 	if err != nil {
 		return err
 	}

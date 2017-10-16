@@ -11,13 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package utils
 
 import (
 	"strings"
 	"text/template"
-
-	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
 func replace(input interface{}, from string, to string) string {
@@ -29,7 +27,7 @@ func split(input interface{}, delimiter string) ([]string, error) {
 }
 
 func escape(input interface{}) string {
-	return utils.Escape(input.(string))
+	return Escape(input.(string))
 }
 
 // TmplFuncMap expose custom go template functions

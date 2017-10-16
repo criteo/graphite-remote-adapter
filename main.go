@@ -15,7 +15,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -30,6 +29,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
@@ -38,25 +38,9 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/criteo/graphite-remote-adapter/client"
+	"github.com/criteo/graphite-remote-adapter/config"
 	"github.com/criteo/graphite-remote-adapter/graphite"
 )
-
-type config struct {
-	configFile           string
-	carbonAddress        string
-	carbonTransport      string
-	graphiteWebURL       string
-	graphitePrefix       string
-	remoteReadTimeout    time.Duration
-	remoteWriteTimeout   time.Duration
-	remoteReadDelay      time.Duration
-	listenAddr           string
-	telemetryPath        string
-	usePathsCache        bool
-	ignoreReadError      bool
-	pathsCacheExpiration time.Duration
-	pathsCachePurge      time.Duration
-}
 
 var (
 	receivedSamples = prometheus.NewCounter(
@@ -96,30 +80,57 @@ func init() {
 	prometheus.MustRegister(sentBatchDuration)
 }
 
-func reload(cfg *config, writers []client.Writer, readers []client.Reader) error {
-	for _, v := range readers {
-		if err := v.ReloadConfig(cfg.configFile); err != nil {
-			return err
+func reload(cliCfg *config.Config, writers []client.Writer, readers []client.Reader, server server) (*config.Config, error) {
+	cfg := &config.DefaultConfig
+	// Parse config file if needed
+	if cliCfg.ConfigFile != "" {
+		fileCfg, err := config.LoadFile(cliCfg.ConfigFile)
+		if err != nil {
+			log.With("err", err).Warnln("Error loading config file")
+			return nil, err
+		}
+		cfg = fileCfg
+	}
+	// Merge overwritting cliCfg into cfg
+	if err := mergo.MergeWithOverwrite(cfg, cliCfg); err != nil {
+		log.With("err", err).Warnln("Error loading config file")
+		return nil, err
+	}
+
+	// Reload clients
+	for _, r := range readers {
+		if err := r.ReloadConfig(cfg); err != nil {
+			return nil, err
 		}
 	}
-	for _, v := range writers {
-		if err := v.ReloadConfig(cfg.configFile); err != nil {
-			return err
+	for _, w := range writers {
+		if err := w.ReloadConfig(cfg); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	if err := server.ReloadConfig(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 func main() {
 	log.Infoln("Starting graphite-remote-adapter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	cfg := parseFlags()
+	cliCfg := config.ParseCommandLine()
 
-	http.Handle(cfg.telemetryPath, prometheus.Handler())
-	writers, readers := buildClients(cfg)
+	s := server{}
+	writers, readers := buildClients(cliCfg)
+
 	// Load the config once.
-	reload(cfg, writers, readers)
+	cfg, err := reload(cliCfg, writers, readers, s)
+	if err != nil {
+		log.With("err", err).Warnln("Error first loading config")
+		return
+	}
+
+	http.Handle(cfg.Web.TelemetryPath, prometheus.Handler())
 
 	// Tooling to dynamically reload the config for each clients.
 	hup := make(chan os.Signal)
@@ -129,13 +140,13 @@ func main() {
 		for {
 			select {
 			case <-hup:
-				if err := reload(cfg, writers, readers); err != nil {
+				if _, err := reload(cliCfg, writers, readers, s); err != nil {
 					log.With("err", err).Errorln("Error reloading config")
 					continue
 				}
 				log.Infoln("Reloaded config file")
 			case rc := <-reloadCh:
-				if err := reload(cfg, writers, readers); err != nil {
+				if _, err := reload(cliCfg, writers, readers, s); err != nil {
 					log.With("err", err).Errorln("Error reloading config")
 					rc <- err
 				} else {
@@ -162,7 +173,7 @@ func main() {
 		})
 
 	if len(writers) != 0 || len(readers) != 0 {
-		err := serve(cfg, writers, readers)
+		err := s.serve(writers, readers)
 		if err != nil {
 			log.Warnln(err)
 		}
@@ -172,94 +183,47 @@ func main() {
 	log.Infoln("See you next time!")
 }
 
-func parseFlags() *config {
-	log.Infoln("Parsing flags")
-	cfg := &config{}
-
-	flag.StringVar(&cfg.configFile, "config-file", "",
-		"Graphite remote adapter configuration file name. None, if empty.",
-	)
-	flag.StringVar(&cfg.carbonAddress, "carbon-address", "",
-		"The host:port of the Graphite server to send samples to. None, if empty.",
-	)
-	flag.StringVar(&cfg.carbonTransport, "carbon-transport", "tcp",
-		"Transport protocol to use to communicate with Graphite. 'tcp', if empty.",
-	)
-	flag.StringVar(&cfg.graphiteWebURL, "graphite-url", "",
-		"The URL of the remote Graphite Web server to send samples to. None, if empty.",
-	)
-	flag.StringVar(&cfg.graphitePrefix, "graphite-prefix", "",
-		"The prefix to prepend to all metrics exported to Graphite. None, if empty.",
-	)
-	flag.DurationVar(&cfg.remoteWriteTimeout, "write-timeout", 30*time.Second,
-		"The timeout to use when writing samples to the remote storage.",
-	)
-	flag.DurationVar(&cfg.remoteReadTimeout, "read-timeout", 30*time.Second,
-		"The timeout to use when reading samples to the remote storage.",
-	)
-	flag.DurationVar(&cfg.remoteReadDelay, "read-delay", 3600*time.Second,
-		"Ignore all read requests from now to delay",
-	)
-	flag.StringVar(&cfg.listenAddr, "web.listen-address", ":9201", "Address to listen on for web endpoints.")
-	flag.StringVar(&cfg.telemetryPath, "web.telemetry-path", "/metrics", "Address to listen on for web endpoints.")
-	flag.BoolVar(&cfg.usePathsCache, "use-paths-cache", false,
-		"Use a cache to store metrics paths lists.",
-	)
-	flag.BoolVar(&cfg.ignoreReadError, "ignore-read-error", false,
-		"Ignore all read errors and return empty results instead. When enabled "+
-			"prometheus will display only local points instead of returning an error.",
-	)
-	flag.DurationVar(&cfg.pathsCacheExpiration, "paths-cache-expiration", 3600*time.Second,
-		"Expiration of items within the paths cache.",
-	)
-	flag.DurationVar(&cfg.pathsCachePurge, "paths-cache-purge", 2*cfg.pathsCacheExpiration,
-		"Frequency of purge for expired items in the paths cache.",
-	)
-
-	flag.Parse()
-
-	return cfg
-}
-
-func buildClients(cfg *config) ([]client.Writer, []client.Reader) {
+func buildClients(cfg *config.Config) ([]client.Writer, []client.Reader) {
 	log.With("cfg", cfg).Infof("Building clients")
 	var writers []client.Writer
 	var readers []client.Reader
-	if cfg.carbonAddress != "" || cfg.graphiteWebURL != "" {
-		c := graphite.NewClient(
-			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
-			cfg.graphiteWebURL, cfg.remoteReadTimeout,
-			cfg.graphitePrefix,
-			cfg.remoteReadDelay, cfg.usePathsCache,
-			cfg.pathsCacheExpiration, cfg.pathsCachePurge)
-		if c != nil {
-			writers = append(writers, c)
-			readers = append(readers, c)
-		}
+	if c := graphite.NewClient(cfg); c != nil {
+		writers = append(writers, c)
+		readers = append(readers, c)
 	}
 	log.With("num_writers", len(writers)).With("num_readers", len(readers)).Infof("Built clients")
 	return writers, readers
 }
 
-func serve(cfg *config, writers []client.Writer, readers []client.Reader) error {
-	log.Infof("Listening on %v", cfg.listenAddr)
+type server struct {
+	cfg *config.Config
+}
+
+// Reloads the config.
+func (s server) ReloadConfig(cfg *config.Config) error {
+	s.cfg = cfg
+	return nil
+}
+
+func (s *server) serve(writers []client.Writer, readers []client.Reader) error {
+	log.Infof("Listening on %v", s.cfg.Web.ListenAddress)
 
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
 		write(w, r, writers)
 	})
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		read(w, r, readers, cfg.ignoreReadError)
+		read(w, r, readers, s.cfg.Read.IgnoreError)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		status(w, r, cfg, writers, readers)
+		status(w, r, s.cfg, writers, readers)
 	})
 
-	return http.ListenAndServe(cfg.listenAddr, nil)
+	return http.ListenAndServe(s.cfg.Web.ListenAddress, nil)
 }
 
-func status(w http.ResponseWriter, r *http.Request, cfg *config, writers []client.Writer, readers []client.Reader) {
+func status(w http.ResponseWriter, r *http.Request, cfg *config.Config, writers []client.Writer, readers []client.Reader) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
 <!DOCTYPE html>

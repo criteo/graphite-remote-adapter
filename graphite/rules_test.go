@@ -19,6 +19,7 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 )
@@ -32,10 +33,10 @@ var (
 	}
 
 	testConfigStr = `
-template_data:
+write:
+  template_data:
     shared: data.foo
-
-rules:
+  rules:
   - match:
       owner: team-X
     match_re:
@@ -51,8 +52,16 @@ rules:
       owner: team-Z
     continue: false`
 
-	testConfig, _ = config.Load(string(testConfigStr))
+	testConfig = loadTestConfig(testConfigStr)
 )
+
+func loadTestConfig(s string) *config.Config {
+	cfg := &config.Config{}
+	if err := yaml.Unmarshal([]byte(string(s)), cfg); err != nil {
+		return nil
+	}
+	return cfg
+}
 
 func TestDefaultPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
@@ -80,7 +89,7 @@ func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 		".owner.team-Y"+
 		".testlabel.test:value"+
 		".testlabel2.test:value2")
-	actual := pathsFromMetric(unmatchedMetric, "prefix.", testConfig.Rules, testConfig.Template_data)
+	actual := pathsFromMetric(unmatchedMetric, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 1 || expected[0] != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -89,7 +98,7 @@ func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
-	actual := pathsFromMetric(metric, "", testConfig.Rules, testConfig.Template_data)
+	actual := pathsFromMetric(metric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 1 || expected[0] != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -105,7 +114,7 @@ func TestMultiTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
 	expected = append(expected, "tmpl_2.team-X.data.foo")
-	actual := pathsFromMetric(multiMatchMetric, "", testConfig.Rules, testConfig.Template_data)
+	actual := pathsFromMetric(multiMatchMetric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 2 || expected[0] != actual[0] || expected[1] != actual[1] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -118,9 +127,9 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 		"owner":               "team-Z",
 		"testlabel2":          "test:value2",
 	}
-	t.Log(testConfig.Rules[2])
+	t.Log(testConfig.Write.Rules[2])
 	expected := make([]string, 0)
-	actual := pathsFromMetric(skipedMetric, "", testConfig.Rules, testConfig.Template_data)
+	actual := pathsFromMetric(skipedMetric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 0 {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}

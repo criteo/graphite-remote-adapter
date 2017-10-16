@@ -14,9 +14,61 @@
 package config
 
 import (
+	"io/ioutil"
 	"regexp"
 	"testing"
 	"text/template"
+	"time"
+
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/criteo/graphite-remote-adapter/utils"
+)
+
+var (
+	expectedConf = &Config{
+		DefaultPrefix: "test.prefix.",
+		Read: ReadConfig{
+			URL: "greatGraphiteWebURL",
+		},
+		Write: WriteConfig{
+			CarbonAddress:           "greatCarbonAddress",
+			CarbonTransport:         "tcp",
+			EnablePathsCache:        true,
+			PathsCacheTTL:           18 * time.Minute,
+			PathsCachePurgeInterval: 42 * time.Minute,
+			TemplateData: map[string]interface{}{
+				"site_mapping": map[string]string{"eu-par": "fr_eqx"},
+			},
+			Rules: []*Rule{
+				{
+					Match: LabelSet{
+						"owner": "team-X",
+					},
+					MatchRE: LabelSetRE{
+						"service": prepareExpectedRegexp("^(foo1|foo2|baz)$"),
+					},
+					Continue: true,
+					Tmpl:     prepareExpectedTemplate("great.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env \"prod\"}}.{{.labels.env}}{{end}}"),
+				},
+				{
+					Match: LabelSet{
+						"owner": "team-X",
+						"env":   "prod",
+					},
+					Continue: true,
+					Tmpl:     prepareExpectedTemplate("bla.bla.{{.labels.owner | escape}}.great.path"),
+				},
+				{
+					Match: LabelSet{
+						"owner": "team-Z",
+					},
+					Continue: false,
+				},
+			},
+		},
+	}
+	testConfigFile = "testdata/graphite.good.yml"
 )
 
 func prepareExpectedRegexp(s string) Regexp {
@@ -25,52 +77,20 @@ func prepareExpectedRegexp(s string) Regexp {
 }
 
 func prepareExpectedTemplate(s string) Template {
-	t, _ := template.New("").Funcs(TmplFuncMap).Parse(s)
+	t, _ := template.New("").Funcs(utils.TmplFuncMap).Parse(s)
 	return Template{t, s}
 }
 
-var expectedConf = &Config{
-	Template_data: map[string]interface{}{
-		"site_mapping": map[string]string{"eu-par": "fr_eqx"},
-	},
-	Rules: []*Rule{
-		{
-			Match: LabelSet{
-				"owner": "team-X",
-			},
-			MatchRE: LabelSetRE{
-				"service": prepareExpectedRegexp("^(foo1|foo2|baz)$"),
-			},
-			Continue: true,
-			Tmpl:     prepareExpectedTemplate("great.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env \"prod\"}}.{{.labels.env}}{{end}}"),
-		},
-		{
-			Match: LabelSet{
-				"owner": "team-X",
-				"env":   "prod",
-			},
-			Continue: true,
-			Tmpl:     prepareExpectedTemplate("bla.bla.{{.labels.owner | escape}}.great.path"),
-		},
-		{
-			Match: LabelSet{
-				"owner": "team-Z",
-			},
-			Continue: false,
-		},
-	},
-	original: "",
-}
-
-func TestLoadConfigFile(t *testing.T) {
-	c, err := LoadFile("testdata/conf.good.yml")
+func TestUnmarshalConfig(t *testing.T) {
+	cfg := &Config{}
+	content, _ := ioutil.ReadFile(testConfigFile)
+	err := yaml.Unmarshal([]byte(string(content)), cfg)
 	if err != nil {
 		t.Fatalf("Error parsing %s: %s", "testdata/conf.good.yml", err)
 	}
-	c.original = ""
 
-	if c.String() != expectedConf.String() {
+	if cfg.String() != expectedConf.String() {
 		t.Fatalf("%s: unexpected config result: \n%s\nExpecting:\n%s",
-			"testdata/conf.good.yml", c.String(), expectedConf.String())
+			"testdata/conf.good.yml", cfg.String(), expectedConf.String())
 	}
 }
