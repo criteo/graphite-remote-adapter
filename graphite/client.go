@@ -33,7 +33,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/criteo/graphite-remote-adapter/graphite/config"
+	"github.com/criteo/graphite-remote-adapter/config"
+	graphiteCfg "github.com/criteo/graphite-remote-adapter/graphite/config"
 )
 
 const (
@@ -44,37 +45,27 @@ const (
 
 // Client allows sending batches of Prometheus samples to Graphite.
 type Client struct {
-	lock             sync.RWMutex
-	carbon           string
-	carbon_transport string
-	write_timeout    time.Duration
-	graphite_web     string
-	read_timeout     time.Duration
-	read_delay       time.Duration
-	prefix           string
-	config           *config.Config
-	ignoredSamples   prometheus.Counter
+	lock           sync.RWMutex
+	cfg            *graphiteCfg.Config
+	writeTimeout   time.Duration
+	readTimeout    time.Duration
+	readDelay      time.Duration
+	ignoredSamples prometheus.Counter
 }
 
 // NewClient creates a new Client.
-func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
-	graphite_web string, read_timeout time.Duration, prefix string,
-	read_delay time.Duration, usePathsCache bool, pathsCacheExpiration time.Duration,
-	pathsCachePurge time.Duration) *Client {
-	if usePathsCache {
-		initPathsCache(pathsCacheExpiration, pathsCachePurge)
+func NewClient(cfg *config.Config) *Client {
+	if cfg.Graphite.Write.CarbonAddress == "" && cfg.Graphite.Read.URL == "" {
+		return nil
 	}
-	// Default empty config.
-	fileConf := &config.Config{}
+	if cfg.Graphite.Write.EnablePathsCache {
+		initPathsCache(cfg.Graphite.Write.PathsCacheTTL, cfg.Graphite.Write.PathsCachePurgeInterval)
+	}
 	return &Client{
-		carbon:           carbon,
-		carbon_transport: carbon_transport,
-		write_timeout:    write_timeout,
-		graphite_web:     graphite_web,
-		read_timeout:     read_timeout,
-		read_delay:       read_delay,
-		prefix:           prefix,
-		config:           fileConf,
+		cfg:          &cfg.Graphite,
+		writeTimeout: cfg.Write.Timeout,
+		readTimeout:  cfg.Read.Timeout,
+		readDelay:    cfg.Read.Delay,
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "prometheus_graphite_ignored_samples_total",
@@ -102,11 +93,11 @@ func (c *Client) Write(samples model.Samples) error {
 	defer c.lock.RUnlock()
 
 	log.With("num_samples", len(samples)).With("storage", c.Name()).Debugf("Remote write")
-	if c.carbon == "" {
+	if c.cfg.Write.CarbonAddress == "" {
 		return nil
 	}
 
-	conn, err := net.DialTimeout(c.carbon_transport, c.carbon, c.write_timeout)
+	conn, err := net.DialTimeout(c.cfg.Write.CarbonTransport, c.cfg.Write.CarbonAddress, c.writeTimeout)
 	if err != nil {
 		return err
 	}
@@ -114,7 +105,7 @@ func (c *Client) Write(samples model.Samples) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		paths := pathsFromMetric(s.Metric, c.prefix, c.config.Rules, c.config.Template_data)
+		paths := pathsFromMetric(s.Metric, c.cfg.DefaultPrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)
@@ -147,10 +138,10 @@ func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]str
 	}
 
 	// Prepare the url to fetch
-	queryStr := c.prefix + name + ".**"
-	expandUrl, err := prepareURL(c.graphite_web, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
+	queryStr := c.cfg.DefaultPrefix + name + ".**"
+	expandUrl, err := prepareURL(c.cfg.Read.URL, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
 	if err != nil {
-		log.With("graphite_web", c.graphite_web).With("path", expandEndpoint).With("err", err).Warnln("Error preparing URL")
+		log.With("graphite_web", c.cfg.Read.URL).With("path", expandEndpoint).With("err", err).Warnln("Error preparing URL")
 		return nil, err
 	}
 
@@ -177,14 +168,14 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels := metricLabelsFromPath(target, c.prefix)
+		labels := metricLabelsFromPath(target, c.cfg.DefaultPrefix)
 		labelSet := make(model.LabelSet, len(labels))
 
 		for _, label := range labels {
 			labelSet[model.LabelName(label.Name)] = model.LabelValue(label.Value)
 		}
 
-		log.With("target", target).With("prefix", c.prefix).With("labels", labels).Debugln("Filtering target")
+		log.With("target", target).With("prefix", c.cfg.DefaultPrefix).With("labels", labels).Debugln("Filtering target")
 
 		// See if all matchers are satisfied.
 		match := true
@@ -210,9 +201,9 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 }
 
 func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*prompb.TimeSeries, error) {
-	renderUrl, err := prepareURL(c.graphite_web, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
+	renderUrl, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
-		log.With("graphite_web", c.graphite_web).With("path", renderEndpoint).With("err", err).Warnln("Error preparing URL")
+		log.With("graphite_web", c.cfg.Read.URL).With("path", renderEndpoint).With("err", err).Warnln("Error preparing URL")
 		return nil, err
 	}
 
@@ -231,7 +222,7 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 	renderResponse := renderResponses[0]
 
 	ts := &prompb.TimeSeries{}
-	ts.Labels = metricLabelsFromPath(renderResponse.Target, c.prefix)
+	ts.Labels = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
 	for _, datapoint := range renderResponse.Datapoints {
 		timstamp_ms := datapoint.Timestamp * 1000
 		if datapoint.Value == nil {
@@ -255,7 +246,7 @@ func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*pro
 	now := int(time.Now().Unix())
 	from := int(query.StartTimestampMs / 1000)
 	until := int(query.EndTimestampMs / 1000)
-	delta := int(c.read_delay.Seconds())
+	delta := int(c.readDelay.Seconds())
 	until = min(now-delta, until)
 
 	if until < from {
@@ -321,11 +312,11 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 
 	log.With("req", req).Debugf("Remote read")
 
-	if c.graphite_web == "" {
+	if c.cfg.Read.URL == "" {
 		return nil, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.read_timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.readTimeout)
 	defer cancel()
 
 	resp := &prompb.ReadResponse{}
@@ -339,34 +330,27 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	return resp, nil
 }
 
-// Reloads the config.
-func (c Client) ReloadConfig(configFile string) error {
-	var fileConf = &config.Config{}
-
-	if configFile != "" {
-		var err error
-		fileConf, err = config.LoadFile(configFile)
-		if err != nil {
-			log.With("err", err).Warnln("Error loading config file")
-			return err
-		}
-	}
-
+// Reloads the graphite config.
+func (c *Client) ReloadConfig(cfg *config.Config) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	*c.config = *fileConf
+	c.cfg = &cfg.Graphite
+	c.writeTimeout = cfg.Write.Timeout
+	c.readTimeout = cfg.Read.Timeout
+	c.readDelay = cfg.Read.Delay
 	return nil
 }
 
 // Name identifies the client as a Graphite client.
-func (c Client) Name() string {
+func (c *Client) Name() string {
 	return "graphite"
 }
 
-func (c Client) String() string {
+func (c *Client) String() string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	return c.config.String()
+	// TODO: add more stuff here.
+	return c.cfg.String()
 }

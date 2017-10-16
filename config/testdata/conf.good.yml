@@ -1,0 +1,9 @@
+web:
+  listen_address: "1.2.3.4:666"
+  telemetry_path: "/coolMetrics"
+write:
+  timeout: 18m0s
+read:
+  timeout: 18m0s
+  delay: 42m0s
+  ignore_error: true
