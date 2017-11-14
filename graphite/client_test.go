@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
 
 	"golang.org/x/net/context"
 )
@@ -36,7 +36,10 @@ var (
 func TestPrepareUrl(t *testing.T) {
 	expectedUrl := "https://guest:guest@greathost:83232/my/path?q=query&toto=lulu"
 
-	u, _ := prepareUrl("https://guest:guest@greathost:83232", "/my/path", map[string]string{"q": "query", "toto": "lulu"})
+	u, _ := prepareUrl(
+		"https://guest:guest@greathost:83232", "/my/path",
+		map[string]string{"q": "query", "toto": "lulu"},
+	)
 	actualUrl := u.String()
 
 	if actualUrl != expectedUrl {
@@ -64,8 +67,15 @@ func TestQueryToTargets(t *testing.T) {
 	fetchUrl = fakeFetchExpandUrl
 	expectedTargets := []string{"prometheus-prefix.test.owner.team-X", "prometheus-prefix.test.owner.team-Y"}
 
-	labelMatchers := []*remote.LabelMatcher{&remote.LabelMatcher{Type: remote.MatchType_EQUAL, Name: model.MetricNameLabel, Value: "test"}}
-	query := &remote.Query{
+	labelMatchers := []*prompb.LabelMatcher{
+		// Query a specific metric.
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_EQ, Name: model.MetricNameLabel, Value: "test"},
+		// Validate that we can match labels.
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_RE, Name: "owner", Value: "team.*"},
+		// Also check that we are not equal to a fake label.
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_NEQ, Name: "invalid.", Value: "fake"},
+	}
+	query := &prompb.Query{
 		StartTimestampMs: int64(0),
 		EndTimestampMs:   int64(300),
 		Matchers:         labelMatchers,
@@ -80,8 +90,10 @@ func TestQueryToTargets(t *testing.T) {
 func TestInvalideQueryToTargets(t *testing.T) {
 	expectedErr := fmt.Errorf("Invalide remote query: no %s label provided", model.MetricNameLabel)
 
-	labelMatchers := []*remote.LabelMatcher{&remote.LabelMatcher{Type: remote.MatchType_EQUAL, Name: "labelname", Value: "labelvalue"}}
-	invalideQuery := &remote.Query{
+	labelMatchers := []*prompb.LabelMatcher{
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_EQ, Name: "labelname", Value: "labelvalue"},
+	}
+	invalideQuery := &prompb.Query{
 		StartTimestampMs: int64(0),
 		EndTimestampMs:   int64(300),
 		Matchers:         labelMatchers,
@@ -95,9 +107,15 @@ func TestInvalideQueryToTargets(t *testing.T) {
 
 func TestTargetToTimeseries(t *testing.T) {
 	fetchUrl = fakeFetchRenderUrl
-	expectedTs := &remote.TimeSeries{
-		Labels:  []*remote.LabelPair{&remote.LabelPair{Name: model.MetricNameLabel, Value: "test"}, &remote.LabelPair{Name: "owner", Value: "team-X"}},
-		Samples: []*remote.Sample{&remote.Sample{Value: float64(18), TimestampMs: int64(0)}, &remote.Sample{Value: float64(42), TimestampMs: int64(300000)}},
+	expectedTs := &prompb.TimeSeries{
+		Labels: []*prompb.Label{
+			&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
+			&prompb.Label{Name: "owner", Value: "team-X"},
+		},
+		Samples: []*prompb.Sample{
+			&prompb.Sample{Value: float64(18), Timestamp: int64(0)},
+			&prompb.Sample{Value: float64(42), Timestamp: int64(300000)},
+		},
 	}
 
 	actualTs, _ := client.targetToTimeseries("prometheus-prefix.test.owner.team-X", "0", "300", nil)
