@@ -30,7 +30,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
 
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/criteo/graphite-remote-adapter/graphite"
 )
@@ -99,7 +99,10 @@ func main() {
 
 	writers, readers := buildClients(cfg)
 	if len(writers) != 0 || len(readers) != 0 {
-		serve(cfg, writers, readers)
+		err := serve(cfg, writers, readers)
+		if err != nil {
+			log.Warnln(err)
+		}
 	} else {
 		log.Warnln("No reader nor writer, leaving")
 	}
@@ -161,7 +164,7 @@ type writer interface {
 }
 
 type reader interface {
-	Read(req *remote.ReadRequest) (*remote.ReadResponse, error)
+	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
 	Name() string
 }
 
@@ -236,7 +239,7 @@ func write(w http.ResponseWriter, r *http.Request, writers []writer) {
 		return
 	}
 
-	var req remote.WriteRequest
+	var req prompb.WriteRequest
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
 		log.With("err", err).Warnln("Error unmarshalling protobuf")
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -273,7 +276,7 @@ func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_
 		return
 	}
 
-	var req remote.ReadRequest
+	var req prompb.ReadRequest
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
 		log.With("err", err).Warnln("Error unmarshalling protobuf")
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -287,7 +290,7 @@ func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_
 	}
 	reader := readers[0]
 
-	var resp *remote.ReadResponse
+	var resp *prompb.ReadResponse
 	resp, err = reader.Read(&req)
 	if err != nil {
 		log.With("query", req).With("storage", reader.Name()).With("err", err).Warnf("Error executing query")
@@ -295,9 +298,9 @@ func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else {
-			resp = &remote.ReadResponse{
-				Results: []*remote.QueryResult{
-					{Timeseries: make([]*remote.TimeSeries, 0, 0)},
+			resp = &prompb.ReadResponse{
+				Results: []*prompb.QueryResult{
+					{Timeseries: make([]*prompb.TimeSeries, 0, 0)},
 				},
 			}
 		}
@@ -319,7 +322,7 @@ func read(w http.ResponseWriter, r *http.Request, readers []reader, ignore_read_
 	}
 }
 
-func protoToSamples(req *remote.WriteRequest) model.Samples {
+func protoToSamples(req *prompb.WriteRequest) model.Samples {
 	var samples model.Samples
 	for _, ts := range req.Timeseries {
 		metric := make(model.Metric, len(ts.Labels))
@@ -331,7 +334,7 @@ func protoToSamples(req *remote.WriteRequest) model.Samples {
 			samples = append(samples, &model.Sample{
 				Metric:    metric,
 				Value:     model.SampleValue(s.Value),
-				Timestamp: model.Time(s.TimestampMs),
+				Timestamp: model.Time(s.Timestamp),
 			})
 		}
 	}

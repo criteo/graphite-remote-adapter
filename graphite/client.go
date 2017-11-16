@@ -27,7 +27,8 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
+	pmetric "github.com/prometheus/prometheus/storage/metric"
 
 	"golang.org/x/net/context"
 
@@ -134,14 +135,16 @@ func (c *Client) Write(samples model.Samples) error {
 	return nil
 }
 
-func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]string, error) {
+func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]string, error) {
 	// Parse metric name from query
 	var name string
-	for _, labelMatcher := range query.Matchers {
-		if labelMatcher.Name == model.MetricNameLabel && remote.MatchType_name[int32(labelMatcher.Type)] == "EQUAL" {
-			name = labelMatcher.Value
+
+	for _, m := range query.Matchers {
+		if m.Name == model.MetricNameLabel && m.Type == prompb.LabelMatcher_EQ {
+			name = m.Value
 		}
 	}
+
 	if name == "" {
 		err := fmt.Errorf("Invalide remote query: no %s label provided", model.MetricNameLabel)
 		return nil, err
@@ -154,6 +157,7 @@ func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]str
 		log.With("graphite_web", c.graphite_web).With("path", expandEndpoint).With("err", err).Warnln("Error preparing URL")
 		return nil, err
 	}
+
 	// Get the list of targets
 	expandResponse := ExpandResponse{}
 	body, err := fetchUrl(expandUrl, ctx)
@@ -161,26 +165,68 @@ func (c *Client) queryToTargets(query *remote.Query, ctx context.Context) ([]str
 		log.With("url", expandUrl).With("err", err).Warnln("Error fetching URL")
 		return nil, err
 	}
+
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
 		log.With("url", expandUrl).With("err", err).Warnln("Error parsing expand endpoint response body")
 		return nil, err
 	}
-	return expandResponse.Results, nil
+
+	targets, err := c.filterTargets(query, expandResponse.Results)
+	return targets, err
 }
 
-func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*remote.TimeSeries, error) {
+func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string, error) {
+	// Filter out targets that do not match the query's label matcher
+	var results []string
+	for _, target := range targets {
+		// Put labels in a map.
+		labels := metricLabelsFromPath(target, c.prefix)
+		labelSet := make(model.LabelSet, len(labels))
+
+		for _, label := range labels {
+			labelSet[model.LabelName(label.Name)] = model.LabelValue(label.Value)
+		}
+
+		log.With("target", target).With("prefix", c.prefix).With("labels", labels).Debugln("Filtering target")
+
+		// See if all matchers are satisfied.
+		match := true
+		for _, m := range query.Matchers {
+			matcher, err := pmetric.NewLabelMatcher(
+				pmetric.MatchType(m.Type), model.LabelName(m.Name), model.LabelValue(m.Value))
+			if err != nil {
+				return nil, err
+			}
+
+			if !matcher.Match(labelSet[model.LabelName(m.Name)]) {
+				match = false
+				break
+			}
+		}
+
+		// If everything is fine, keep this target.
+		if match {
+			results = append(results, target)
+		}
+	}
+	return results, nil
+}
+
+func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*prompb.TimeSeries, error) {
 	renderUrl, err := prepareUrl(c.graphite_web, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
 		log.With("graphite_web", c.graphite_web).With("path", renderEndpoint).With("err", err).Warnln("Error preparing URL")
 		return nil, err
 	}
+
 	renderResponses := make([]RenderResponse, 0)
 	body, err := fetchUrl(renderUrl, ctx)
 	if err != nil {
 		log.With("url", renderUrl).With("err", err).Warnln("Error fetching URL")
 		return nil, err
 	}
+
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
 		log.With("url", renderUrl).With("err", err).Warnln("Error parsing render endpoint response body")
@@ -188,14 +234,14 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 	}
 	renderResponse := renderResponses[0]
 
-	ts := &remote.TimeSeries{}
+	ts := &prompb.TimeSeries{}
 	ts.Labels = metricLabelsFromPath(renderResponse.Target, c.prefix)
 	for _, datapoint := range renderResponse.Datapoints {
 		timstamp_ms := datapoint.Timestamp * 1000
 		if datapoint.Value == nil {
 			continue
 		}
-		ts.Samples = append(ts.Samples, &remote.Sample{Value: *datapoint.Value, TimestampMs: timstamp_ms})
+		ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstamp_ms})
 	}
 	return ts, nil
 }
@@ -207,8 +253,8 @@ func min(a, b int) int {
 	return b
 }
 
-func (c *Client) handleReadQuery(query *remote.Query, ctx context.Context) (*remote.QueryResult, error) {
-	queryResult := &remote.QueryResult{}
+func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*prompb.QueryResult, error) {
+	queryResult := &prompb.QueryResult{}
 
 	now := int(time.Now().Unix())
 	from := int(query.StartTimestampMs / 1000)
@@ -238,7 +284,7 @@ func (c *Client) handleReadQuery(query *remote.Query, ctx context.Context) (*rem
 	return queryResult, nil
 }
 
-func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
+func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	log.With("req", req).Debugf("Remote read")
 
 	if c.graphite_web == "" {
@@ -248,7 +294,7 @@ func (c *Client) Read(req *remote.ReadRequest) (*remote.ReadResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.read_timeout)
 	defer cancel()
 
-	resp := &remote.ReadResponse{}
+	resp := &prompb.ReadResponse{}
 	for _, query := range req.Queries {
 		queryResult, err := c.handleReadQuery(query, ctx)
 		if err != nil {

@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
 )
@@ -129,7 +129,10 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 func TestMetricLabelsFromPath(t *testing.T) {
 	path := "prometheus-prefix.test.owner.team-X"
 	prefix := "prometheus-prefix"
-	expectedLabels := []*remote.LabelPair{&remote.LabelPair{Name: model.MetricNameLabel, Value: "test"}, &remote.LabelPair{Name: "owner", Value: "team-X"}}
+	expectedLabels := []*prompb.Label{
+		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
+		&prompb.Label{Name: "owner", Value: "team-X"},
+	}
 	actualLabels := metricLabelsFromPath(path, prefix)
 	if !reflect.DeepEqual(expectedLabels, actualLabels) {
 		t.Errorf("Expected %s, got %s", expectedLabels, actualLabels)
