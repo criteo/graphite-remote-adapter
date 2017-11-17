@@ -17,12 +17,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"html"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
@@ -200,27 +202,58 @@ func serve(cfg *config, writers []writer, readers []reader) error {
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		status(w, r, writers, readers)
+		status(w, r, cfg, writers, readers)
 	})
 
 	return http.ListenAndServe(cfg.listenAddr, nil)
 }
 
-func status(w http.ResponseWriter, r *http.Request, writers []writer, readers []reader) {
+func status(w http.ResponseWriter, r *http.Request, cfg *config, writers []writer, readers []reader) {
 	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Graphite Remote Adapter</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+
+  </head>
+  <body>
+    <div class="container" role="main">
+    <h1>Graphite Remote Adapter</h1>
+`)
+
 	fmt.Fprintf(w, "graphite-remote-adapter %s<br/>", version.Info())
 	fmt.Fprintf(w, "Build context %s<br/>", version.BuildContext())
 
+	fmt.Fprintf(w, "Flags:<br/><pre>%s</pre>", html.EscapeString(spew.Sdump(cfg)))
+
 	fmt.Fprintf(w, "Writers:<br/><dl>")
 	for _, v := range writers {
-		fmt.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>", v.Name(), v)
+		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
+			v.Name(), html.EscapeString(spew.Sdump(v)))
 	}
 	fmt.Fprintf(w, "</dl>")
 	fmt.Fprintf(w, "Readers:<br/><dl>")
 	for _, v := range readers {
-		fmt.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>", v.Name(), v)
+		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
+			v.Name(), html.EscapeString(spew.Sdump(v)))
 	}
 	fmt.Fprintf(w, "</dl>")
+
+	fmt.Fprintf(w, `
+    </div>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  </body>
+</html>
+`)
 }
 
 func write(w http.ResponseWriter, r *http.Request, writers []writer) {
