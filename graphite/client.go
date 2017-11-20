@@ -21,6 +21,7 @@ import (
 	"math"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,6 +43,7 @@ const (
 
 // Client allows sending batches of Prometheus samples to Graphite.
 type Client struct {
+	lock             sync.RWMutex
 	carbon           string
 	carbon_transport string
 	write_timeout    time.Duration
@@ -50,28 +52,19 @@ type Client struct {
 	read_delay       time.Duration
 	prefix           string
 	config           *config.Config
-	rules            []*config.Rule
-	template_data    map[string]interface{}
 	ignoredSamples   prometheus.Counter
 }
 
 // NewClient creates a new Client.
 func NewClient(carbon string, carbon_transport string, write_timeout time.Duration,
-	graphite_web string, read_timeout time.Duration, prefix string, configFile string,
+	graphite_web string, read_timeout time.Duration, prefix string,
 	read_delay time.Duration, usePathsCache bool, pathsCacheExpiration time.Duration,
 	pathsCachePurge time.Duration) *Client {
-	fileConf := &config.Config{}
-	if configFile != "" {
-		var err error
-		fileConf, err = config.LoadFile(configFile)
-		if err != nil {
-			log.With("err", err).Warnln("Error loading config file")
-			return nil
-		}
-	}
 	if usePathsCache {
 		initPathsCache(pathsCacheExpiration, pathsCachePurge)
 	}
+	// Default empty config.
+	fileConf := &config.Config{}
 	return &Client{
 		carbon:           carbon,
 		carbon_transport: carbon_transport,
@@ -81,8 +74,6 @@ func NewClient(carbon string, carbon_transport string, write_timeout time.Durati
 		read_delay:       read_delay,
 		prefix:           prefix,
 		config:           fileConf,
-		rules:            fileConf.Rules,
-		template_data:    fileConf.Template_data,
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "prometheus_graphite_ignored_samples_total",
@@ -106,6 +97,9 @@ func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 
 // Write sends a batch of samples to Graphite.
 func (c *Client) Write(samples model.Samples) error {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	log.With("num_samples", len(samples)).With("storage", c.Name()).Debugf("Remote write")
 	if c.carbon == "" {
 		return nil
@@ -119,10 +113,11 @@ func (c *Client) Write(samples model.Samples) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		paths := pathsFromMetric(s.Metric, c.prefix, c.rules, c.template_data)
+		paths := pathsFromMetric(s.Metric, c.prefix, c.config.Rules, c.config.Template_data)
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)
+				log.With("line", str).Debugf("Sending")
 			}
 		}
 	}
@@ -285,6 +280,9 @@ func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*pro
 }
 
 func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	log.With("req", req).Debugf("Remote read")
 
 	if c.graphite_web == "" {
@@ -305,12 +303,34 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	return resp, nil
 }
 
+// Reloads the config.
+func (c Client) ReloadConfig(configFile string) error {
+	var fileConf = &config.Config{}
+
+	if configFile != "" {
+		var err error
+		fileConf, err = config.LoadFile(configFile)
+		if err != nil {
+			log.With("err", err).Warnln("Error loading config file")
+			return err
+		}
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	*c.config = *fileConf
+	return nil
+}
+
 // Name identifies the client as a Graphite client.
 func (c Client) Name() string {
 	return "graphite"
 }
 
 func (c Client) String() string {
-	// TODO: add more stuff here.
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	return c.config.String()
 }
