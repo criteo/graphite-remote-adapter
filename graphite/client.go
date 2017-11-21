@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	expandEndpoint = "/metrics/expand"
-	renderEndpoint = "/render/"
+	expandEndpoint  = "/metrics/expand"
+	renderEndpoint  = "/render/"
+	maxFetchWorkers = 10
 )
 
 // Client allows sending batches of Prometheus samples to Graphite.
@@ -268,15 +269,50 @@ func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*pro
 	if err != nil {
 		return nil, err
 	}
+
+	c.fetchData(queryResult, targets, ctx, from_str, until_str)
+	return queryResult, nil
+}
+
+func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ctx context.Context, from_str string, until_str string) {
+	input := make(chan string, len(targets))
+	output := make(chan *prompb.TimeSeries, len(targets))
+
+	wg := sync.WaitGroup{}
+
+	// Start only a few workers to avoid killing graphite.
+	for i := 0; i < maxFetchWorkers; i++ {
+		wg.Add(1)
+
+		go func(from_str string, until_str string, ctx context.Context) {
+			defer wg.Done()
+
+			for target := range input {
+				// We simply ignore errors here as it is better to return "some" data
+				// than nothing.
+				ts, err := c.targetToTimeseries(target, from_str, until_str, ctx)
+				if err != nil {
+					log.With("target", target).With("err", err).Warnln(
+						"Error fetching and parsing target datapoints")
+				} else {
+					output <- ts
+				}
+			}
+		}(from_str, until_str, ctx)
+	}
+
+	// Feed the inut.
 	for _, target := range targets {
-		ts, err := c.targetToTimeseries(target, from_str, until_str, ctx)
-		if err != nil {
-			log.With("target", target).With("err", err).Warnln("Error fetching and parsing target datapoints")
-			continue
-		}
+		input <- target
+	}
+	close(input)
+
+	wg.Wait()
+	close(output)
+
+	for ts := range output {
 		queryResult.Timeseries = append(queryResult.Timeseries, ts)
 	}
-	return queryResult, nil
 }
 
 func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
