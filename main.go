@@ -21,7 +21,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -92,14 +95,71 @@ func init() {
 	prometheus.MustRegister(sentBatchDuration)
 }
 
+func reload(cfg *config, writers []writer, readers []reader) error {
+	for _, v := range readers {
+		if err := v.ReloadConfig(cfg.configFile); err != nil {
+			return err
+		}
+	}
+	for _, v := range writers {
+		if err := v.ReloadConfig(cfg.configFile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	log.Infoln("Starting graphite-remote-adapter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
 	cfg := parseFlags()
-	http.Handle(cfg.telemetryPath, prometheus.Handler())
 
+	http.Handle(cfg.telemetryPath, prometheus.Handler())
 	writers, readers := buildClients(cfg)
+	// Load the config once.
+	reload(cfg, writers, readers)
+
+	// Tooling to dynamically reload the config for each clients.
+	hup := make(chan os.Signal)
+	reloadCh := make(chan chan error)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case <-hup:
+				if err := reload(cfg, writers, readers); err != nil {
+					log.With("err", err).Errorln("Error reloading config")
+					continue
+				}
+				log.Infoln("Reloaded config file")
+			case rc := <-reloadCh:
+				if err := reload(cfg, writers, readers); err != nil {
+					log.With("err", err).Errorln("Error reloading config")
+					rc <- err
+				} else {
+					log.Infoln("Reloaded config file")
+					rc <- nil
+				}
+			}
+		}
+	}()
+
+	http.HandleFunc("/-/reload",
+		func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != "POST" {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				fmt.Fprintf(w, "This endpoint requires a POST request.\n")
+				return
+			}
+
+			rc := make(chan error)
+			reloadCh <- rc
+			if err := <-rc; err != nil {
+				http.Error(w, fmt.Sprintf("failed to reload config: %s", err), http.StatusInternalServerError)
+			}
+		})
+
 	if len(writers) != 0 || len(readers) != 0 {
 		err := serve(cfg, writers, readers)
 		if err != nil {
@@ -163,11 +223,13 @@ func parseFlags() *config {
 type writer interface {
 	Write(samples model.Samples) error
 	Name() string
+	ReloadConfig(configFile string) error
 }
 
 type reader interface {
 	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
 	Name() string
+	ReloadConfig(configFile string) error
 }
 
 func buildClients(cfg *config) ([]writer, []reader) {
@@ -178,7 +240,7 @@ func buildClients(cfg *config) ([]writer, []reader) {
 		c := graphite.NewClient(
 			cfg.carbonAddress, cfg.carbonTransport, cfg.remoteWriteTimeout,
 			cfg.graphiteWebURL, cfg.remoteReadTimeout,
-			cfg.graphitePrefix, cfg.configFile,
+			cfg.graphitePrefix,
 			cfg.remoteReadDelay, cfg.usePathsCache,
 			cfg.pathsCacheExpiration, cfg.pathsCachePurge)
 		if c != nil {
