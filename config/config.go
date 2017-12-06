@@ -5,7 +5,9 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/prometheus/common/promlog"
 	yaml "gopkg.in/yaml.v2"
 
 	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
@@ -25,8 +27,8 @@ func Load(s string) (*Config, error) {
 }
 
 // LoadFile parses the given YAML file into a Config.
-func LoadFile(filename string) (*Config, error) {
-	log.With("file", filename).Infof("Loading configuration file")
+func LoadFile(logger log.Logger, filename string) (*Config, error) {
+	level.Info(logger).Log("file", filename, "msg", "Loading configuration file")
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -57,6 +59,7 @@ var DefaultConfig = Config{
 
 type Config struct {
 	ConfigFile string
+	LogLevel   promlog.AllowedLevel
 	Web        webOptions      `yaml:"web,omitempty" json:"web,omitempty"`
 	Read       readOptions     `yaml:"read,omitempty" json:"read,omitempty"`
 	Write      writeOptions    `yaml:"write,omitempty" json:"write,omitempty"`

@@ -16,6 +16,8 @@ package config
 import (
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
 )
 
 var expectedConf = &Config{
@@ -35,7 +37,7 @@ var expectedConf = &Config{
 }
 
 func TestLoadConfigFile(t *testing.T) {
-	c, err := LoadFile("testdata/conf.good.yml")
+	c, err := LoadFile(log.NewNopLogger(), "testdata/conf.good.yml")
 	if err != nil {
 		t.Fatalf("Error parsing %s: %s", "testdata/conf.good.yml", err)
 	}

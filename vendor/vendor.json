@@ -183,6 +183,30 @@
 			"revisionTime": "2017-06-02T20:46:24Z"
 		},
 		{
+			"checksumSHA1": "KrIRJ4p3nRze4NcxfgX5+N9+D1M=",
+			"path": "github.com/go-kit/kit/log",
+			"revision": "53f10af5d5c7375d4655a3d6852457ed17ab5cc7",
+			"revisionTime": "2017-12-03T12:59:21Z"
+		},
+		{
+			"checksumSHA1": "t7aTpDH0h4BZcGU0KkUr14QQG2w=",
+			"path": "github.com/go-kit/kit/log/level",
+			"revision": "53f10af5d5c7375d4655a3d6852457ed17ab5cc7",
+			"revisionTime": "2017-12-03T12:59:21Z"
+		},
+		{
+			"checksumSHA1": "KxX/Drph+byPXBFIXaCZaCOAnrU=",
+			"path": "github.com/go-logfmt/logfmt",
+			"revision": "390ab7935ee28ec6b286364bba9b4dd6410cb3d5",
+			"revisionTime": "2016-11-15T14:25:13Z"
+		},
+		{
+			"checksumSHA1": "luu+ud4XYZhlCoNnSAwCJlbh0Bg=",
+			"path": "github.com/go-stack/stack",
+			"revision": "259ab82a6cad3992b4e21ff5cac294ccb06474bc",
+			"revisionTime": "2017-11-12T03:14:02Z"
+		},
+		{
 			"checksumSHA1": "6ZxSmrIx3Jd15aou16oG0HPylP4=",
 			"path": "github.com/gogo/protobuf/proto",
 			"revision": "efccd33a0c20aa078705571d5ddbfa14c8395a63",
@@ -295,6 +319,12 @@
 			"revisionTime": "2016-08-03T19:07:31Z"
 		},
 		{
+			"checksumSHA1": "abKzFXAn0KDr5U+JON1ZgJ2lUtU=",
+			"path": "github.com/kr/logfmt",
+			"revision": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0",
+			"revisionTime": "2014-02-26T03:06:59Z"
+		},
+		{
 			"checksumSHA1": "bKMZjd2wPw13VwoE7mBeSv5djFA=",
 			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
@@ -359,6 +389,18 @@
 			"path": "github.com/prometheus/common/model",
 			"revision": "59448d3901e3b3cf6da094faa09668e53a4ff52d",
 			"revisionTime": "2017-06-16T07:53:16Z"
+		},
+		{
+			"checksumSHA1": "Yseprf8kAFr/s7wztkQnrFuFN+8=",
+			"path": "github.com/prometheus/common/promlog",
+			"revision": "2e54d0b93cba2fd133edc32211dcc32c06ef72ca",
+			"revisionTime": "2017-11-17T16:30:51Z"
+		},
+		{
+			"checksumSHA1": "1H28FCxsaAIm6kvue+Wfdd8Lq6M=",
+			"path": "github.com/prometheus/common/promlog/flag",
+			"revision": "2e54d0b93cba2fd133edc32211dcc32c06ef72ca",
+			"revisionTime": "2017-11-17T16:30:51Z"
 		},
 		{
 			"checksumSHA1": "91KYK0SpvkaMJJA2+BcxbVnyRO0=",

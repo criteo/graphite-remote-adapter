@@ -26,7 +26,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 	pmetric "github.com/prometheus/prometheus/storage/metric"
@@ -51,17 +52,25 @@ type Client struct {
 	readTimeout    time.Duration
 	readDelay      time.Duration
 	ignoredSamples prometheus.Counter
+
+	logger log.Logger
 }
 
 // NewClient creates a new Client.
-func NewClient(cfg *config.Config) *Client {
+func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	if cfg.Graphite.Write.CarbonAddress == "" && cfg.Graphite.Read.URL == "" {
 		return nil
 	}
 	if cfg.Graphite.Write.EnablePathsCache {
-		initPathsCache(cfg.Graphite.Write.PathsCacheTTL, cfg.Graphite.Write.PathsCachePurgeInterval)
+		initPathsCache(cfg.Graphite.Write.PathsCacheTTL,
+			cfg.Graphite.Write.PathsCachePurgeInterval)
+		level.Debug(logger).Log(
+			"PathsCacheTTL", cfg.Graphite.Write.PathsCacheTTL,
+			"PathsCachePurgeInterval", cfg.Graphite.Write.PathsCachePurgeInterval,
+			"msg", "Paths cache initialized")
 	}
 	return &Client{
+		logger:       logger,
 		cfg:          &cfg.Graphite,
 		writeTimeout: cfg.Write.Timeout,
 		readTimeout:  cfg.Read.Timeout,
@@ -79,8 +88,8 @@ func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 	t := float64(s.Timestamp.UnixNano()) / 1e9
 	v := float64(s.Value)
 	if math.IsNaN(v) || math.IsInf(v, 0) {
-		log.Debugf("cannot send value %f to Graphite,"+
-			"skipping sample %#v", v, s)
+		level.Debug(c.logger).Log(
+			"value", v, "sample", s, "msg", "cannot send a value, skipping sample")
 		c.ignoredSamples.Inc()
 		return ""
 	}
@@ -92,7 +101,8 @@ func (c *Client) Write(samples model.Samples) error {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	log.With("num_samples", len(samples)).With("storage", c.Name()).Debugf("Remote write")
+	level.Debug(c.logger).Log(
+		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 	if c.cfg.Write.CarbonAddress == "" {
 		return nil
 	}
@@ -109,7 +119,7 @@ func (c *Client) Write(samples model.Samples) error {
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)
-				log.With("line", str).Debugf("Sending")
+				level.Debug(c.logger).Log("line", str, "msg", "Sending")
 			}
 		}
 	}
@@ -141,21 +151,26 @@ func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]str
 	queryStr := c.cfg.DefaultPrefix + name + ".**"
 	expandUrl, err := prepareURL(c.cfg.Read.URL, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
 	if err != nil {
-		log.With("graphite_web", c.cfg.Read.URL).With("path", expandEndpoint).With("err", err).Warnln("Error preparing URL")
+		level.Warn(c.logger).Log(
+			"graphite_web", c.cfg.Read.URL, "path", expandEndpoint,
+			"err", err, "msg", "Error preparing URL")
 		return nil, err
 	}
 
 	// Get the list of targets
 	expandResponse := ExpandResponse{}
-	body, err := fetchURL(expandUrl, ctx)
+	body, err := fetchURL(c.logger, expandUrl, ctx)
 	if err != nil {
-		log.With("url", expandUrl).With("err", err).Warnln("Error fetching URL")
+		level.Warn(c.logger).Log(
+			"url", expandUrl, "err", err, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
-		log.With("url", expandUrl).With("err", err).Warnln("Error parsing expand endpoint response body")
+		level.Warn(c.logger).Log(
+			"url", expandUrl, "err", err,
+			"msg", "Error parsing expand endpoint response body")
 		return nil, err
 	}
 
@@ -168,14 +183,21 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels := metricLabelsFromPath(target, c.cfg.DefaultPrefix)
+		labels, err := metricLabelsFromPath(target, c.cfg.DefaultPrefix)
+		if err != nil {
+			level.Warn(c.logger).Log(
+				"path", target, "prefix", c.cfg.DefaultPrefix, "err", err)
+			continue
+		}
 		labelSet := make(model.LabelSet, len(labels))
 
 		for _, label := range labels {
 			labelSet[model.LabelName(label.Name)] = model.LabelValue(label.Value)
 		}
 
-		log.With("target", target).With("prefix", c.cfg.DefaultPrefix).With("labels", labels).Debugln("Filtering target")
+		level.Debug(c.logger).Log(
+			"target", target, "prefix", c.cfg.DefaultPrefix,
+			"labels", labels, "msg", "Filtering target")
 
 		// See if all matchers are satisfied.
 		match := true
@@ -203,26 +225,36 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*prompb.TimeSeries, error) {
 	renderUrl, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
-		log.With("graphite_web", c.cfg.Read.URL).With("path", renderEndpoint).With("err", err).Warnln("Error preparing URL")
+		level.Warn(c.logger).Log(
+			"graphite_web", c.cfg.Read.URL, "path", renderEndpoint,
+			"err", err, "msg", "Error preparing URL")
 		return nil, err
 	}
 
 	renderResponses := make([]RenderResponse, 0)
-	body, err := fetchURL(renderUrl, ctx)
+	body, err := fetchURL(c.logger, renderUrl, ctx)
 	if err != nil {
-		log.With("url", renderUrl).With("err", err).Warnln("Error fetching URL")
+		level.Warn(c.logger).Log(
+			"url", renderUrl, "err", err, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
-		log.With("url", renderUrl).With("err", err).Warnln("Error parsing render endpoint response body")
+		level.Warn(c.logger).Log(
+			"url", renderUrl, "err", err,
+			"msg", "Error parsing render endpoint response body")
 		return nil, err
 	}
 	renderResponse := renderResponses[0]
 
 	ts := &prompb.TimeSeries{}
-	ts.Labels = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
+	ts.Labels, err = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
+	if err != nil {
+		level.Warn(c.logger).Log(
+			"path", renderResponse.Target, "prefix", c.cfg.DefaultPrefix, "err", err)
+		return nil, err
+	}
 	for _, datapoint := range renderResponse.Datapoints {
 		timstamp_ms := datapoint.Timestamp * 1000
 		if datapoint.Value == nil {
@@ -250,7 +282,7 @@ func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*pro
 	until = min(now-delta, until)
 
 	if until < from {
-		log.Debugf("Skipping query with empty time range")
+		level.Debug(c.logger).Log("msg", "Skipping query with empty time range")
 		return queryResult, nil
 	}
 	from_str := strconv.Itoa(from)
@@ -283,8 +315,7 @@ func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ct
 				// than nothing.
 				ts, err := c.targetToTimeseries(target, from_str, until_str, ctx)
 				if err != nil {
-					log.With("target", target).With("err", err).Warnln(
-						"Error fetching and parsing target datapoints")
+					level.Warn(c.logger).Log("target", target, "err", err, "msg", "Error fetching and parsing target datapoints")
 				} else {
 					output <- ts
 				}
@@ -310,7 +341,7 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	log.With("req", req).Debugf("Remote read")
+	level.Debug(c.logger).Log("req", req, "msg", "Remote read")
 
 	if c.cfg.Read.URL == "" {
 		return nil, nil
