@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/criteo/graphite-remote-adapter/graphite/config"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 
@@ -29,6 +30,7 @@ import (
 
 var (
 	client = &Client{
+		logger: log.NewNopLogger(),
 		cfg: &config.Config{
 			DefaultPrefix: "prometheus-prefix.",
 			Write:         config.WriteConfig{},
@@ -39,7 +41,7 @@ var (
 	}
 )
 
-func fakeFetchExpandURL(u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchExpandURL(l log.Logger, u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/metrics/expand?format=json&leavesOnly=1&query=prometheus-prefix.test.%2A%2A" {
 		body.WriteString("{\"results\": [\"prometheus-prefix.test.owner.team-X\", \"prometheus-prefix.test.owner.team-Y\"]}")
@@ -47,7 +49,7 @@ func fakeFetchExpandURL(u *url.URL, ctx context.Context) ([]byte, error) {
 	return body.Bytes(), nil
 }
 
-func fakeFetchRenderURL(u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchRenderURL(l log.Logger, u *url.URL, ctx context.Context) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/render/?format=json&from=0&target=prometheus-prefix.test.owner.team-X&until=300" {
 		body.WriteString("[{\"target\": \"prometheus-prefix.test.owner.team-X\", \"datapoints\": [[18,0], [42,300]]}]")

@@ -7,13 +7,12 @@ import (
 
 	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
+	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 func ParseCommandLine() *Config {
-	log.Infoln("Parsing command line")
 	cfg := &Config{}
 
 	a := kingpin.New(filepath.Base(os.Args[0]), "The Graphite remote adapter")
@@ -47,6 +46,11 @@ func ParseCommandLine() *Config {
 		"Avoid returning error to promtheus returning empty result instead.").
 		BoolVar(&cfg.Read.IgnoreError)
 
+	// Add logLevel flag
+	a.Flag(promlogflag.LevelFlagName, promlogflag.LevelFlagHelp).
+		Default("info").SetValue(&cfg.LogLevel)
+
+	// Add graphite flag
 	graphite.AddCommandLine(a, &cfg.Graphite)
 
 	_, err := a.Parse(os.Args[1:])

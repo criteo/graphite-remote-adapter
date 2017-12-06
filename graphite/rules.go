@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 
@@ -38,7 +37,6 @@ var (
 func initPathsCache(pathsCacheExpiration time.Duration, pathsCachePurge time.Duration) {
 	paths_cache = cache.New(pathsCacheExpiration, pathsCachePurge)
 	paths_cache_enabled = true
-	log.Infof("Paths cache initialized with %s expiration duration and %s cleanup interval", pathsCacheExpiration.String(), pathsCachePurge.String())
 }
 
 func loadContext(template_data map[string]interface{}, m model.Metric) map[string]interface{} {
@@ -139,7 +137,7 @@ func defaultPath(m model.Metric, prefix string) string {
 	return buffer.String()
 }
 
-func metricLabelsFromPath(path string, prefix string) []*prompb.Label {
+func metricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {
 	// It uses the "default" write format to read back (See defaultPath function)
 	// <prefix.><__name__.>[<labelName>.<labelValue>. for each label in alphabetic order]
 	var labels []*prompb.Label
@@ -148,11 +146,11 @@ func metricLabelsFromPath(path string, prefix string) []*prompb.Label {
 	nodes := strings.Split(cleanedPath, ".")
 	labels = append(labels, &prompb.Label{Name: model.MetricNameLabel, Value: nodes[0]})
 	if len(nodes[1:])%2 != 0 {
-		log.With("path", path).With("prefix", prefix).Warnln("Unable to parse labels from path: odd number of nodes in path")
-		return labels
+		err := fmt.Errorf("Unable to parse labels from path: odd number of nodes in path")
+		return nil, err
 	}
 	for i := 1; i < len(nodes); i += 2 {
 		labels = append(labels, &prompb.Label{Name: nodes[i], Value: nodes[i+1]})
 	}
-	return labels
+	return labels, nil
 }

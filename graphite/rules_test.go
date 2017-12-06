@@ -142,7 +142,7 @@ func TestMetricLabelsFromPath(t *testing.T) {
 		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
 		&prompb.Label{Name: "owner", Value: "team-X"},
 	}
-	actualLabels := metricLabelsFromPath(path, prefix)
+	actualLabels, _ := metricLabelsFromPath(path, prefix)
 	if !reflect.DeepEqual(expectedLabels, actualLabels) {
 		t.Errorf("Expected %s, got %s", expectedLabels, actualLabels)
 	}
