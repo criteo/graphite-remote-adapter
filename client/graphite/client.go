@@ -34,8 +34,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	graphiteCfg "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/config"
-	graphiteCfg "github.com/criteo/graphite-remote-adapter/graphite/config"
 )
 
 const (

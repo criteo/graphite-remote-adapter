@@ -21,7 +21,7 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/criteo/graphite-remote-adapter/graphite/config"
+	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
 )
 
 var (

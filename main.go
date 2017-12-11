@@ -39,8 +39,8 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/criteo/graphite-remote-adapter/client"
+	"github.com/criteo/graphite-remote-adapter/client/graphite"
 	"github.com/criteo/graphite-remote-adapter/config"
-	"github.com/criteo/graphite-remote-adapter/graphite"
 )
 
 var (

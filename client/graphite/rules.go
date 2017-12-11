@@ -23,7 +23,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 
-	"github.com/criteo/graphite-remote-adapter/graphite/config"
+	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/utils"
 
 	"github.com/patrickmn/go-cache"

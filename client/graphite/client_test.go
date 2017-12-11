@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/criteo/graphite-remote-adapter/graphite/config"
+	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"

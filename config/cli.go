@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
+	graphite "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/pkg/errors"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
