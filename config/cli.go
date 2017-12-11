@@ -12,6 +12,7 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
+// ParseCommandLine parse flags and args from cli.
 func ParseCommandLine() *Config {
 	cfg := &Config{}
 

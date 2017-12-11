@@ -26,12 +26,12 @@ import (
 )
 
 // PrepareURL return an url.URL from it's parameters
-func PrepareURL(scheme_host string, path string, params map[string]string) (*url.URL, error) {
+func PrepareURL(schemeHost string, path string, params map[string]string) (*url.URL, error) {
 	values := url.Values{}
 	for k, v := range params {
 		values.Set(k, v)
 	}
-	u, err := url.Parse(scheme_host)
+	u, err := url.Parse(schemeHost)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func PrepareURL(scheme_host string, path string, params map[string]string) (*url
 }
 
 // FetchURL return body of a fetched url.URL
-func FetchURL(logger log.Logger, u *url.URL, ctx context.Context) ([]byte, error) {
+func FetchURL(ctx context.Context, logger log.Logger, u *url.URL) ([]byte, error) {
 	level.Debug(logger).Log("url", u, "context", ctx, "msg", "Fetching URL")
 
 	hresp, err := ctxhttp.Get(ctx, http.DefaultClient, u.String())

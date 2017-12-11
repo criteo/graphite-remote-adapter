@@ -40,7 +40,7 @@ const (
 // Fortunately on UNIX only '/' isn't, and Windows is completely unsupported
 // by Graphite: http://graphite.readthedocs.org/en/latest/install.html#windows-users
 
-// escape escapes a model.LabelValue into runes allowed in Graphite. The runes
+// Escape escapes a model.LabelValue into runes allowed in Graphite. The runes
 // allowed in Graphite are all single-byte. This function encodes the arbitrary
 // byte sequence found in this TagValue in way very similar to the traditional
 // percent-encoding (https://en.wikipedia.org/wiki/Percent-encoding):

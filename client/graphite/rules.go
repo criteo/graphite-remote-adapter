@@ -30,18 +30,18 @@ import (
 )
 
 var (
-	paths_cache         *cache.Cache
-	paths_cache_enabled = false
+	pathsCache        *cache.Cache
+	pathsCacheEnabled = false
 )
 
-func initPathsCache(pathsCacheExpiration time.Duration, pathsCachePurge time.Duration) {
-	paths_cache = cache.New(pathsCacheExpiration, pathsCachePurge)
-	paths_cache_enabled = true
+func initPathsCache(pathsCacheTTL time.Duration, pathsCachePurgeInterval time.Duration) {
+	pathsCache = cache.New(pathsCacheTTL, pathsCachePurgeInterval)
+	pathsCacheEnabled = true
 }
 
-func loadContext(template_data map[string]interface{}, m model.Metric) map[string]interface{} {
+func loadContext(templateData map[string]interface{}, m model.Metric) map[string]interface{} {
 	ctx := make(map[string]interface{})
-	for k, v := range template_data {
+	for k, v := range templateData {
 		ctx[k] = v
 	}
 	labels := make(map[string]string)
@@ -66,25 +66,25 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 	return true
 }
 
-func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, template_data map[string]interface{}) []string {
-	if paths_cache_enabled {
-		cached_assertion, cached := paths_cache.Get(m.Fingerprint().String())
+func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templateData map[string]interface{}) []string {
+	if pathsCacheEnabled {
+		cachedPaths, cached := pathsCache.Get(m.Fingerprint().String())
 		if cached {
-			return cached_assertion.([]string)
+			return cachedPaths.([]string)
 		}
 	}
-	paths, skipped := templatedPaths(m, rules, template_data)
+	paths, skipped := templatedPaths(m, rules, templateData)
 	// if it doesn't match any rule, use default path
 	if len(paths) == 0 && !skipped {
 		paths = append(paths, defaultPath(m, prefix))
 	}
-	if paths_cache_enabled {
-		paths_cache.Set(m.Fingerprint().String(), paths, cache.DefaultExpiration)
+	if pathsCacheEnabled {
+		pathsCache.Set(m.Fingerprint().String(), paths, cache.DefaultExpiration)
 	}
 	return paths
 }
 
-func templatedPaths(m model.Metric, rules []*config.Rule, template_data map[string]interface{}) ([]string, bool) {
+func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[string]interface{}) ([]string, bool) {
 	var paths []string
 	for _, rule := range rules {
 		match := match(m, rule.Match, rule.MatchRE)
@@ -96,7 +96,7 @@ func templatedPaths(m model.Metric, rules []*config.Rule, template_data map[stri
 			return nil, true
 		}
 
-		context := loadContext(template_data, m)
+		context := loadContext(templateData, m)
 		var path bytes.Buffer
 		rule.Tmpl.Execute(&path, context)
 		paths = append(paths, path.String())

@@ -41,7 +41,7 @@ func LoadFile(logger log.Logger, filename string) (*Config, error) {
 	return cfg, nil
 }
 
-// DefaultGlobalConfig provides global default values.
+// DefaultConfig is the default top-level configuration.
 var DefaultConfig = Config{
 	Web: webOptions{
 		ListenAddress: "0.0.0.0:9201",
@@ -58,6 +58,7 @@ var DefaultConfig = Config{
 	Graphite: graphite.DefaultConfig,
 }
 
+// Config is the top-level configuration.
 type Config struct {
 	ConfigFile string
 	LogLevel   promlog.AllowedLevel
