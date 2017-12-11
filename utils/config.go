@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// CheckOverflow enforce m to be empty. Usefull to detect unknown fields.
 func CheckOverflow(m map[string]interface{}, ctx string) error {
 	if len(m) > 0 {
 		var keys []string

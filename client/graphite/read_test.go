@@ -41,7 +41,7 @@ var (
 	}
 )
 
-func fakeFetchExpandURL(l log.Logger, u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchExpandURL(ctx context.Context, l log.Logger, u *url.URL) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/metrics/expand?format=json&leavesOnly=1&query=prometheus-prefix.test.%2A%2A" {
 		body.WriteString("{\"results\": [\"prometheus-prefix.test.owner.team-X\", \"prometheus-prefix.test.owner.team-Y\"]}")
@@ -49,7 +49,7 @@ func fakeFetchExpandURL(l log.Logger, u *url.URL, ctx context.Context) ([]byte, 
 	return body.Bytes(), nil
 }
 
-func fakeFetchRenderURL(l log.Logger, u *url.URL, ctx context.Context) ([]byte, error) {
+func fakeFetchRenderURL(ctx context.Context, l log.Logger, u *url.URL) ([]byte, error) {
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/render/?format=json&from=0&target=prometheus-prefix.test.owner.team-X&until=300" {
 		body.WriteString("[{\"target\": \"prometheus-prefix.test.owner.team-X\", \"datapoints\": [[18,0], [42,300]]}]")
@@ -75,7 +75,7 @@ func TestQueryToTargets(t *testing.T) {
 		Matchers:         labelMatchers,
 	}
 
-	actualTargets, _ := client.queryToTargets(query, nil)
+	actualTargets, _ := client.queryToTargets(nil, query)
 	if !reflect.DeepEqual(expectedTargets, actualTargets) {
 		t.Errorf("Expected %s, got %s", expectedTargets, actualTargets)
 	}
@@ -93,7 +93,7 @@ func TestInvalideQueryToTargets(t *testing.T) {
 		Matchers:         labelMatchers,
 	}
 
-	_, err := client.queryToTargets(invalideQuery, nil)
+	_, err := client.queryToTargets(nil, invalideQuery)
 	if !reflect.DeepEqual(err, expectedErr) {
 		t.Errorf("Error from queryToTargets not returned.  Expected %v, got %v", expectedErr, err)
 	}
@@ -112,7 +112,7 @@ func TestTargetToTimeseries(t *testing.T) {
 		},
 	}
 
-	actualTs, _ := client.targetToTimeseries("prometheus-prefix.test.owner.team-X", "0", "300", nil)
+	actualTs, _ := client.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300")
 	if !reflect.DeepEqual(expectedTs, actualTs) {
 		t.Errorf("Expected %s, got %s", expectedTs, actualTs)
 	}

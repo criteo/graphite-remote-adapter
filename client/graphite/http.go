@@ -25,20 +25,24 @@ var (
 	prepareURL = utils.PrepareURL
 )
 
+// ExpandResponse is a parsed response of graphite expand endpoint.
 type ExpandResponse struct {
 	Results []string `yaml:"results,omitempty" json:"results,omitempty"`
 }
 
+// RenderResponse is a single parsed element of graphite render endpoint.
 type RenderResponse struct {
 	Target     string       `yaml:"target,omitempty" json:"target,omitempty"`
 	Datapoints []*Datapoint `yaml:"datapoints,omitempty" json:"datapoints,omitempty"`
 }
 
+// Datapoint pairs a timestamp to a value.
 type Datapoint struct {
 	Value     *float64
 	Timestamp int64
 }
 
+// UnmarshalJSON unmarshals a Datapoint from json
 func (d *Datapoint) UnmarshalJSON(b []byte) error {
 	var x []*interface{}
 	err := json.Unmarshal(b, &x)

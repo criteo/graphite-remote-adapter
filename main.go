@@ -187,6 +187,7 @@ func buildClients(cfg *config.Config, logger log.Logger) ([]client.Writer, []cli
 	return writers, readers
 }
 
+// Server handle http requests.
 type Server struct {
 	lock sync.RWMutex
 
@@ -196,7 +197,7 @@ type Server struct {
 	readers []client.Reader
 }
 
-// Reloads the config.
+// ReloadConfig reloads the config file from cli params.
 func (s *Server) ReloadConfig(logger log.Logger, cfg *config.Config) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -207,6 +208,7 @@ func (s *Server) ReloadConfig(logger log.Logger, cfg *config.Config) error {
 	return nil
 }
 
+// Serve handle http requests.
 func (s *Server) Serve(logger log.Logger) error {
 	level.Info(logger).Log("ListenAddress", s.cfg.Web.ListenAddress, "msg", "Listening")
 
@@ -225,6 +227,7 @@ func (s *Server) Serve(logger log.Logger) error {
 	return http.ListenAndServe(s.cfg.Web.ListenAddress, nil)
 }
 
+// Status generate an html status page.
 func (s *Server) Status(w http.ResponseWriter, r *http.Request) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

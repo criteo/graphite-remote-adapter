@@ -18,16 +18,19 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
+// Client define a remote storage.
 type Client interface {
 	Name() string
 	String() string
 }
 
+// Writer is a client taht sends a batch of samples to remote.
 type Writer interface {
 	Write(samples model.Samples) error
 	Client
 }
 
+// Reader is a client that read samples from remote.
 type Reader interface {
 	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
 	Client

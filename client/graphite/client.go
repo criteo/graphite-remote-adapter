@@ -45,7 +45,7 @@ type Client struct {
 	logger log.Logger
 }
 
-// NewClient creates a new Client.
+// NewClient returns a new Client.
 func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	if cfg.Graphite.Write.CarbonAddress == "" && cfg.Graphite.Read.URL == "" {
 		return nil
@@ -73,11 +73,12 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	}
 }
 
-// Name identifies the client as a Graphite client.
+// Name implements the client.Client interface.
 func (c *Client) Name() string {
 	return "graphite"
 }
 
+// String implements the client.Client interface.
 func (c *Client) String() string {
 	// TODO: add more stuff here.
 	return c.cfg.String()

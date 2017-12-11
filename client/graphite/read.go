@@ -29,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]string, error) {
+func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]string, error) {
 	// Parse metric name from query
 	var name string
 
@@ -46,7 +46,7 @@ func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]str
 
 	// Prepare the url to fetch
 	queryStr := c.cfg.DefaultPrefix + name + ".**"
-	expandUrl, err := prepareURL(c.cfg.Read.URL, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
+	expandURL, err := prepareURL(c.cfg.Read.URL, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
 	if err != nil {
 		level.Warn(c.logger).Log(
 			"graphite_web", c.cfg.Read.URL, "path", expandEndpoint,
@@ -56,17 +56,17 @@ func (c *Client) queryToTargets(query *prompb.Query, ctx context.Context) ([]str
 
 	// Get the list of targets
 	expandResponse := ExpandResponse{}
-	body, err := fetchURL(c.logger, expandUrl, ctx)
+	body, err := fetchURL(ctx, c.logger, expandURL)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", expandUrl, "err", err, "msg", "Error fetching URL")
+			"url", expandURL, "err", err, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", expandUrl, "err", err,
+			"url", expandURL, "err", err,
 			"msg", "Error parsing expand endpoint response body")
 		return nil, err
 	}
@@ -119,8 +119,8 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 	return results, nil
 }
 
-func (c *Client) targetToTimeseries(target string, from string, until string, ctx context.Context) (*prompb.TimeSeries, error) {
-	renderUrl, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
+func (c *Client) targetToTimeseries(ctx context.Context, target string, from string, until string) (*prompb.TimeSeries, error) {
+	renderURL, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
 		level.Warn(c.logger).Log(
 			"graphite_web", c.cfg.Read.URL, "path", renderEndpoint,
@@ -129,17 +129,17 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 	}
 
 	renderResponses := make([]RenderResponse, 0)
-	body, err := fetchURL(c.logger, renderUrl, ctx)
+	body, err := fetchURL(ctx, c.logger, renderURL)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", renderUrl, "err", err, "msg", "Error fetching URL")
+			"url", renderURL, "err", err, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", renderUrl, "err", err,
+			"url", renderURL, "err", err,
 			"msg", "Error parsing render endpoint response body")
 		return nil, err
 	}
@@ -153,11 +153,11 @@ func (c *Client) targetToTimeseries(target string, from string, until string, ct
 		return nil, err
 	}
 	for _, datapoint := range renderResponse.Datapoints {
-		timstamp_ms := datapoint.Timestamp * 1000
+		timstampMs := datapoint.Timestamp * 1000
 		if datapoint.Value == nil {
 			continue
 		}
-		ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstamp_ms})
+		ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstampMs})
 	}
 	return ts, nil
 }
@@ -169,7 +169,7 @@ func min(a, b int) int {
 	return b
 }
 
-func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*prompb.QueryResult, error) {
+func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*prompb.QueryResult, error) {
 	queryResult := &prompb.QueryResult{}
 
 	now := int(time.Now().Unix())
@@ -182,19 +182,19 @@ func (c *Client) handleReadQuery(query *prompb.Query, ctx context.Context) (*pro
 		level.Debug(c.logger).Log("msg", "Skipping query with empty time range")
 		return queryResult, nil
 	}
-	from_str := strconv.Itoa(from)
-	until_str := strconv.Itoa(until)
+	fromStr := strconv.Itoa(from)
+	untilStr := strconv.Itoa(until)
 
-	targets, err := c.queryToTargets(query, ctx)
+	targets, err := c.queryToTargets(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
-	c.fetchData(queryResult, targets, ctx, from_str, until_str)
+	c.fetchData(ctx, queryResult, targets, fromStr, untilStr)
 	return queryResult, nil
 }
 
-func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ctx context.Context, from_str string, until_str string) {
+func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult, targets []string, fromStr string, untilStr string) {
 	input := make(chan string, len(targets))
 	output := make(chan *prompb.TimeSeries, len(targets))
 
@@ -204,20 +204,20 @@ func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ct
 	for i := 0; i < maxFetchWorkers; i++ {
 		wg.Add(1)
 
-		go func(from_str string, until_str string, ctx context.Context) {
+		go func(fromStr string, untilStr string, ctx context.Context) {
 			defer wg.Done()
 
 			for target := range input {
 				// We simply ignore errors here as it is better to return "some" data
 				// than nothing.
-				ts, err := c.targetToTimeseries(target, from_str, until_str, ctx)
+				ts, err := c.targetToTimeseries(ctx, target, fromStr, untilStr)
 				if err != nil {
 					level.Warn(c.logger).Log("target", target, "err", err, "msg", "Error fetching and parsing target datapoints")
 				} else {
 					output <- ts
 				}
 			}
-		}(from_str, until_str, ctx)
+		}(fromStr, untilStr, ctx)
 	}
 
 	// Feed the inut.
@@ -234,6 +234,7 @@ func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ct
 	}
 }
 
+// Read implements the client.Reader interface.
 func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	level.Debug(c.logger).Log("req", req, "msg", "Remote read")
 
@@ -246,7 +247,7 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 
 	resp := &prompb.ReadResponse{}
 	for _, query := range req.Queries {
-		queryResult, err := c.handleReadQuery(query, ctx)
+		queryResult, err := c.handleReadQuery(ctx, query)
 		if err != nil {
 			return nil, err
 		}

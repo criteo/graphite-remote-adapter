@@ -27,7 +27,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// DefaultGraphiteConfig provides global default values.
+// DefaultConfig is the default graphite configuration.
 var DefaultConfig = Config{
 	DefaultPrefix: "",
 	Write: WriteConfig{
@@ -42,6 +42,7 @@ var DefaultConfig = Config{
 	},
 }
 
+// Config is the graphite configuration.
 type Config struct {
 	Write         WriteConfig `yaml:"write,omitempty" json:"write,omitempty"`
 	Read          ReadConfig  `yaml:"read,omitempty" json:"read,omitempty"`
@@ -69,6 +70,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return utils.CheckOverflow(c.XXX, "graphite config")
 }
 
+// ReadConfig is the read graphite configuration.
 type ReadConfig struct {
 	URL string `yaml:"url,omitempty" json:"url,omitempty"`
 
@@ -86,6 +88,7 @@ func (c *ReadConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return utils.CheckOverflow(c.XXX, "readConfig")
 }
 
+// WriteConfig is the write graphite configuration.
 type WriteConfig struct {
 	CarbonAddress           string                 `yaml:"carbon_address,omitempty" json:"carbon_address,omitempty"`
 	CarbonTransport         string                 `yaml:"carbon_transport,omitempty" json:"carbon_transport,omitempty"`
@@ -109,9 +112,14 @@ func (c *WriteConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return utils.CheckOverflow(c.XXX, "writeConfig")
 }
 
+// LabelSet pairs a LabelName to a LabelValue.
 type LabelSet map[model.LabelName]model.LabelValue
+
+// LabelSetRE defines pairs like LabelSet but does regular expression
 type LabelSetRE map[model.LabelName]Regexp
 
+// Rule defines a templating rule that customize graphite path using the
+// Tmpl if a metric matching the labels exists.
 type Rule struct {
 	Tmpl     Template   `yaml:"template,omitempty" json:"template,omitempty"`
 	Match    LabelSet   `yaml:"match,omitempty" json:"match,omitempty"`
@@ -132,6 +140,7 @@ func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return utils.CheckOverflow(r.XXX, "rule")
 }
 
+// Template is a parsable template.
 type Template struct {
 	*template.Template
 	original string

@@ -36,7 +36,7 @@ func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 	return fmt.Sprintf("%s %f %f\n", path, v, t)
 }
 
-// Write sends a batch of samples to Graphite.
+// Write implements the client.Writer interface.
 func (c *Client) Write(samples model.Samples) error {
 	level.Debug(c.logger).Log(
 		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
