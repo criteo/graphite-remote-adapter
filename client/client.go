@@ -14,19 +14,13 @@
 package client
 
 import (
-	"github.com/criteo/graphite-remote-adapter/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
 
-type Reloadable interface {
-	ReloadConfig(cfg *config.Config) error
-}
-
 type Client interface {
 	Name() string
 	String() string
-	Reloadable
 }
 
 type Writer interface {

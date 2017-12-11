@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
 	"github.com/go-kit/kit/log"
 )
 
@@ -33,6 +34,7 @@ var expectedConf = &Config{
 	Write: writeOptions{
 		Timeout: 18 * time.Minute,
 	},
+	Graphite: graphite.DefaultConfig,
 	original: "",
 }
 
