@@ -36,7 +36,6 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/version"
-
 	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/criteo/graphite-remote-adapter/client"
@@ -82,9 +81,7 @@ func init() {
 	prometheus.MustRegister(sentBatchDuration)
 }
 
-func reload(cliCfg *config.Config, logger log.Logger,
-	writers []client.Writer, readers []client.Reader, server *server) (*config.Config, error) {
-
+func reload(cliCfg *config.Config, logger log.Logger, server *Server) (*config.Config, error) {
 	cfg := &config.DefaultConfig
 	// Parse config file if needed
 	if cliCfg.ConfigFile != "" {
@@ -101,20 +98,11 @@ func reload(cliCfg *config.Config, logger log.Logger,
 		return nil, err
 	}
 
-	// Reload clients
-	for _, r := range readers {
-		if err := r.ReloadConfig(cfg); err != nil {
-			return nil, err
-		}
-	}
-	for _, w := range writers {
-		if err := w.ReloadConfig(cfg); err != nil {
-			return nil, err
-		}
-	}
-	if err := server.ReloadConfig(cfg); err != nil {
+	// Reload server
+	if err := server.ReloadConfig(logger, cfg); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 
@@ -124,11 +112,10 @@ func main() {
 	level.Info(logger).Log("msg", "Starting graphite-remote-adapter", "version", version.Info())
 	level.Info(logger).Log("build_context", version.BuildContext())
 
-	s := &server{}
-	writers, readers := buildClients(cliCfg, logger)
+	server := &Server{}
 
 	// Load the config once.
-	cfg, err := reload(cliCfg, logger, writers, readers, s)
+	cfg, err := reload(cliCfg, logger, server)
 	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "Error first loading config")
 		return
@@ -144,13 +131,13 @@ func main() {
 		for {
 			select {
 			case <-hup:
-				if _, err := reload(cliCfg, logger, writers, readers, s); err != nil {
+				if _, err := reload(cliCfg, logger, server); err != nil {
 					level.Error(logger).Log("err", err, "msg", "Error reloading config")
 					continue
 				}
 				level.Info(logger).Log("msg", "Reloaded config file")
 			case rc := <-reloadCh:
-				if _, err := reload(cliCfg, logger, writers, readers, s); err != nil {
+				if _, err := reload(cliCfg, logger, server); err != nil {
 					level.Error(logger).Log("err", err, "msg", "Error reloading config")
 					rc <- err
 				} else {
@@ -176,8 +163,8 @@ func main() {
 			}
 		})
 
-	if len(writers) != 0 || len(readers) != 0 {
-		err := s.serve(logger, writers, readers)
+	if len(server.writers) != 0 || len(server.readers) != 0 {
+		err := server.Serve(logger)
 		if err != nil {
 			level.Warn(logger).Log("err", err)
 		}
@@ -200,35 +187,52 @@ func buildClients(cfg *config.Config, logger log.Logger) ([]client.Writer, []cli
 	return writers, readers
 }
 
-type server struct {
+type Server struct {
+	lock sync.RWMutex
+
 	cfg *config.Config
+
+	writers []client.Writer
+	readers []client.Reader
 }
 
 // Reloads the config.
-func (s *server) ReloadConfig(cfg *config.Config) error {
+func (s *Server) ReloadConfig(logger log.Logger, cfg *config.Config) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.cfg = cfg
+	s.writers, s.readers = buildClients(cfg, logger)
+
 	return nil
 }
 
-func (s *server) serve(logger log.Logger, writers []client.Writer, readers []client.Reader) error {
+func (s *Server) Serve(logger log.Logger) error {
 	level.Info(logger).Log("ListenAddress", s.cfg.Web.ListenAddress, "msg", "Listening")
 
 	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
-		write(logger, w, r, writers)
+		s.Write(logger, w, r)
 	})
 
 	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		read(logger, w, r, readers, s.cfg.Read.IgnoreError)
+		s.Read(logger, w, r)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		status(w, r, s.cfg, writers, readers)
+		s.Status(w, r)
 	})
 
 	return http.ListenAndServe(s.cfg.Web.ListenAddress, nil)
 }
 
-func status(w http.ResponseWriter, r *http.Request, cfg *config.Config, writers []client.Writer, readers []client.Reader) {
+func (s *Server) Status(w http.ResponseWriter, r *http.Request) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	s.status(w, r)
+}
+
+func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `
 <!DOCTYPE html>
@@ -253,16 +257,16 @@ func status(w http.ResponseWriter, r *http.Request, cfg *config.Config, writers 
 	fmt.Fprintf(w, "graphite-remote-adapter %s<br/>", version.Info())
 	fmt.Fprintf(w, "Build context %s<br/>", version.BuildContext())
 
-	fmt.Fprintf(w, "Flags:<br/><pre>%s</pre>", html.EscapeString(spew.Sdump(cfg)))
+	fmt.Fprintf(w, "Flags:<br/><pre>%s</pre>", html.EscapeString(spew.Sdump(s.cfg)))
 
 	fmt.Fprintf(w, "Writers:<br/><dl>")
-	for _, v := range writers {
+	for _, v := range s.writers {
 		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
 			v.Name(), html.EscapeString(spew.Sdump(v)))
 	}
 	fmt.Fprintf(w, "</dl>")
 	fmt.Fprintf(w, "Readers:<br/><dl>")
-	for _, v := range readers {
+	for _, v := range s.readers {
 		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
 			v.Name(), html.EscapeString(spew.Sdump(v)))
 	}
@@ -276,7 +280,14 @@ func status(w http.ResponseWriter, r *http.Request, cfg *config.Config, writers 
 `)
 }
 
-func write(logger log.Logger, w http.ResponseWriter, r *http.Request, writers []client.Writer) {
+func (s *Server) Write(logger log.Logger, w http.ResponseWriter, r *http.Request) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	s.write(logger, w, r)
+}
+
+func (s *Server) write(logger log.Logger, w http.ResponseWriter, r *http.Request) {
 	level.Debug(logger).Log("request", r, "msg", "Handling /write request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -303,7 +314,7 @@ func write(logger log.Logger, w http.ResponseWriter, r *http.Request, writers []
 	receivedSamples.Add(float64(len(samples)))
 
 	var wg sync.WaitGroup
-	for _, w := range writers {
+	for _, w := range s.writers {
 		wg.Add(1)
 		go func(rw client.Writer) {
 			sendSamples(logger, rw, samples)
@@ -313,7 +324,14 @@ func write(logger log.Logger, w http.ResponseWriter, r *http.Request, writers []
 	wg.Wait()
 }
 
-func read(logger log.Logger, w http.ResponseWriter, r *http.Request, readers []client.Reader, ignore_read_error bool) {
+func (s *Server) Read(logger log.Logger, w http.ResponseWriter, r *http.Request) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	s.read(logger, w, r)
+}
+
+func (s *Server) read(logger log.Logger, w http.ResponseWriter, r *http.Request) {
 	level.Debug(logger).Log("request", r, "msg", "Handling /read request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -337,11 +355,11 @@ func read(logger log.Logger, w http.ResponseWriter, r *http.Request, readers []c
 	}
 
 	// TODO: Support reading from more than one reader and merging the results.
-	if len(readers) != 1 {
-		http.Error(w, fmt.Sprintf("expected exactly one reader, found %d readers", len(readers)), http.StatusInternalServerError)
+	if len(s.readers) != 1 {
+		http.Error(w, fmt.Sprintf("expected exactly one reader, found %d readers", len(s.readers)), http.StatusInternalServerError)
 		return
 	}
-	reader := readers[0]
+	reader := s.readers[0]
 
 	var resp *prompb.ReadResponse
 	resp, err = reader.Read(&req)
@@ -349,7 +367,7 @@ func read(logger log.Logger, w http.ResponseWriter, r *http.Request, readers []c
 		level.Warn(logger).Log(
 			"query", req, "storage", reader.Name(),
 			"err", err, "msg", "Error executing query")
-		if ignore_read_error == false {
+		if s.cfg.Read.IgnoreError == false {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

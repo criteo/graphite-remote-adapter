@@ -55,6 +55,7 @@ var DefaultConfig = Config{
 	Write: writeOptions{
 		Timeout: 5 * time.Minute,
 	},
+	Graphite: graphite.DefaultConfig,
 }
 
 type Config struct {

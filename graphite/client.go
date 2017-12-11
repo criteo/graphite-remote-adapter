@@ -98,9 +98,6 @@ func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 
 // Write sends a batch of samples to Graphite.
 func (c *Client) Write(samples model.Samples) error {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
 	level.Debug(c.logger).Log(
 		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 	if c.cfg.Write.CarbonAddress == "" {
@@ -338,9 +335,6 @@ func (c *Client) fetchData(queryResult *prompb.QueryResult, targets []string, ct
 }
 
 func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
 	level.Debug(c.logger).Log("req", req, "msg", "Remote read")
 
 	if c.cfg.Read.URL == "" {
@@ -361,27 +355,12 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	return resp, nil
 }
 
-// Reloads the graphite config.
-func (c *Client) ReloadConfig(cfg *config.Config) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	c.cfg = &cfg.Graphite
-	c.writeTimeout = cfg.Write.Timeout
-	c.readTimeout = cfg.Read.Timeout
-	c.readDelay = cfg.Read.Delay
-	return nil
-}
-
 // Name identifies the client as a Graphite client.
 func (c *Client) Name() string {
 	return "graphite"
 }
 
 func (c *Client) String() string {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
 	// TODO: add more stuff here.
 	return c.cfg.String()
 }
