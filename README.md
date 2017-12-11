@@ -1,7 +1,7 @@
 # Graphite Remote storage adapter [![Build Status](https://travis-ci.org/criteo/graphite-remote-adapter.svg?branch=master)](https://travis-ci.org/criteo/graphite-remote-adapter)
 
 This is a read/write adapter that receives samples via Prometheus's remote write
-protocol and stores them in Graphite.
+protocol and stores them in remote storage like Graphite.
 
 It is based on [remote_storage_adapter](https://github.com/prometheus/prometheus/tree/master/documentation/examples/remote_storage/remote_storage_adapter)
 
@@ -10,10 +10,10 @@ It is based on [remote_storage_adapter](https://github.com/prometheus/prometheus
 You can either `go get` it:
 
 ```
-$ GO15VENDOREXPERIMENT=1 go get github.com/criteo/graphite-remote-adapter/cmd/...
+$ go get github.com/criteo/graphite-remote-adapter/...
 $ cd $GOPATH/src/github.com/criteo/graphite-remote-adapter
 $ make build
-$ ./graphite-remote-adapter -graphite-url=localhost:2003
+$ ./graphite-remote-adapter --graphite.read.url='http://localhost:8080' --graphite.write.carbon-address=localhost:2003
 ```
 
 Or checkout the source code and build manually:
@@ -24,7 +24,7 @@ $ cd $GOPATH/src/github.com/criteo
 $ git clone https://github.com/criteo/graphite-remote-adapter.git
 $ cd graphite-remote-adapter
 $ make build
-$ ./graphite-remote-adapter -graphite-url=localhost:2003
+$ ./graphite-remote-adapter --graphite.read.url='http://localhost:8080' --graphite.write.carbon-address=localhost:2003
 ```
 
 ## Running
@@ -33,11 +33,11 @@ Graphite example:
 
 ```
 ./graphite-remote-adapter \
-  -carbon-address localhost:2001 \
-  -graphite-url http://guest:guest@localhost:8080/ \
-  -read-timeout 10s -write-timeout 5s \
-  -read-delay 3600s \
-  -graphite-prefix prometheus.
+  --graphite.write.carbon-address=localhost:2001 \
+  --graphite.read.url='http://guest:guest@localhost:8080' \
+  --read.timeout= 10s --write.timeout= 5s \
+  --read.delay 3600s \
+  --graphite.default-prefix prometheus.
 ```
 
 To show all flags:
@@ -47,28 +47,52 @@ To show all flags:
 ```
 
 ## Example
+You can provide some configuration parameters either as flags or in a configuration file. If defined in both, the flag is used.
+In addtion, you can fill the configuration file with Graphite specific parameters. You can indeed defined customized paths/behaviors for remote-write into Graphite.
+
 This is an example configuration that should cover most relevant aspects of the YAML configuration format.
 
 ```yaml
-template_data:
-    site_mapping:
-        eu-par: fr_eqx
+web:
+  listen_address: "0.0.0.0:9201"
+  telemetry_path: "/metrics"
+write:
+  timeout: 5m
+read:
+  timeout: 5m
+  delay: 1h
+  ignore_error: true
+graphite:
+  default_prefix: test.prefix.
+  read:
+    url: http://localhost:8888
+  write:
+    carbon_address: localhost:2003
+    carbon_transport: tcp
+    enable_paths_cache: true
+    paths_cache_ttl: 1h
+    paths_cache_purge_interval: 2h
+    template_data:
+      var1:
+        foo: bar
+      var2: foobar
 
-rules:
+    rules:
     - match:
         owner: team-X
       match_re:
         service: ^(foo1|foo2|baz)$
-      template: 'great.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env "prod"}}.{{.labels.env}}{{end}}'
+      template: '{{.var1.foo}}.graphite.path.host.{{.labels.owner}}.{{.labels.service}}{{if ne .labels.env "prod"}}.{{.labels.env}}{{end}}'
       continue: true
     - match:
         owner: team-X
         env:   prod
-      template: 'bla.bla.{{.labels.owner}}.great.path'
+      template: 'bla.bla.{{.labels.owner | escape}}.great.{{.var2}}'
       continue: true
     - match:
-        env: team-Z
+        owner: team-Z
       continue: false
+
 ```
 
 ## Configuring Prometheus
