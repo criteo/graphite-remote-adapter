@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
+	graphite "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/go-kit/kit/log"
 )
 

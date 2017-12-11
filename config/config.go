@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/common/promlog"
 	yaml "gopkg.in/yaml.v2"
 
-	graphite "github.com/criteo/graphite-remote-adapter/graphite/config"
+	graphite "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
