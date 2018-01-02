@@ -212,17 +212,23 @@ func (s *Server) ReloadConfig(logger log.Logger, cfg *config.Config) error {
 func (s *Server) Serve(logger log.Logger) error {
 	level.Info(logger).Log("ListenAddress", s.cfg.Web.ListenAddress, "msg", "Listening")
 
-	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
+	ihf := func(name string, f http.HandlerFunc) http.HandlerFunc {
+		return prometheus.InstrumentHandlerFunc(name, func(w http.ResponseWriter, r *http.Request) {
+			f(w, r)
+		})
+	}
+
+	http.HandleFunc("/write", ihf("write", func(w http.ResponseWriter, r *http.Request) {
 		s.Write(logger, w, r)
-	})
+	}))
 
-	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/read", ihf("read", func(w http.ResponseWriter, r *http.Request) {
 		s.Read(logger, w, r)
-	})
+	}))
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", ihf("status", func(w http.ResponseWriter, r *http.Request) {
 		s.Status(w, r)
-	})
+	}))
 
 	return http.ListenAndServe(s.cfg.Web.ListenAddress, nil)
 }
