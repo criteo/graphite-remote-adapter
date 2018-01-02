@@ -94,7 +94,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 
 		level.Debug(c.logger).Log(
 			"target", target, "prefix", c.cfg.DefaultPrefix,
-			"labels", labels, "msg", "Filtering target")
+			"labels", labelSet, "msg", "Filtering target")
 
 		// See if all matchers are satisfied.
 		match := true
