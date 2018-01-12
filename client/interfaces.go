@@ -22,6 +22,7 @@ import (
 type Client interface {
 	Name() string
 	String() string
+	Shutdown()
 }
 
 // Writer is a client taht sends a batch of samples to remote.

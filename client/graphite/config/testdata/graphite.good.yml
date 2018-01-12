@@ -4,6 +4,7 @@ read:
 write:
   carbon_address: greatCarbonAddress
   carbon_transport: tcp
+  carbon_reconnect_interval: 2m
   enable_paths_cache: true
   paths_cache_ttl: 18m
   paths_cache_purge_interval: 42m
