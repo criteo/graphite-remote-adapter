@@ -35,6 +35,7 @@ var (
 			CarbonAddress:           "greatCarbonAddress",
 			CarbonTransport:         "tcp",
 			EnablePathsCache:        true,
+			CarbonReconnectInterval: 2 * time.Minute,
 			PathsCacheTTL:           18 * time.Minute,
 			PathsCachePurgeInterval: 42 * time.Minute,
 			TemplateData: map[string]interface{}{

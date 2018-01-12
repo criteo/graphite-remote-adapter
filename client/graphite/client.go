@@ -25,6 +25,7 @@ import (
 
 	graphiteCfg "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/config"
+	"net"
 )
 
 const (
@@ -41,6 +42,10 @@ type Client struct {
 	readTimeout    time.Duration
 	readDelay      time.Duration
 	ignoredSamples prometheus.Counter
+
+	carbonCon               net.Conn
+	carbonLastReconnectTime time.Time
+	carbonConLock           sync.Mutex
 
 	logger log.Logger
 }
@@ -70,7 +75,17 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 				Help: "The total number of samples not sent to Graphite due to unsupported float values (Inf, -Inf, NaN).",
 			},
 		),
+		carbonCon:               nil,
+		carbonLastReconnectTime: time.Time{},
+		carbonConLock:           sync.Mutex{},
 	}
+}
+
+// Shutdowns the client.
+func (c *Client) Shutdown() {
+	c.carbonConLock.Lock()
+	defer c.carbonConLock.Unlock()
+	c.disconnectFromCarbon()
 }
 
 // Name implements the client.Client interface.

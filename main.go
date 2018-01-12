@@ -202,6 +202,13 @@ func (s *Server) ReloadConfig(logger log.Logger, cfg *config.Config) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	for _, v := range s.writers {
+		v.Shutdown()
+	}
+	for _, v := range s.readers {
+		v.Shutdown()
+	}
+
 	s.cfg = cfg
 	s.writers, s.readers = buildClients(cfg, logger)
 

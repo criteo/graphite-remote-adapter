@@ -33,6 +33,7 @@ var DefaultConfig = Config{
 	Write: WriteConfig{
 		CarbonAddress:           "",
 		CarbonTransport:         "tcp",
+		CarbonReconnectInterval: 1 * time.Hour,
 		EnablePathsCache:        true,
 		PathsCacheTTL:           1 * time.Hour,
 		PathsCachePurgeInterval: 2 * time.Hour,
@@ -92,6 +93,7 @@ func (c *ReadConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type WriteConfig struct {
 	CarbonAddress           string                 `yaml:"carbon_address,omitempty" json:"carbon_address,omitempty"`
 	CarbonTransport         string                 `yaml:"carbon_transport,omitempty" json:"carbon_transport,omitempty"`
+	CarbonReconnectInterval time.Duration          `yaml:"carbon_reconnect_interval,omitempty" json:"carbon_reconnect_interval,omitempty"`
 	EnablePathsCache        bool                   `yaml:"enable_paths_cache,omitempty" json:"enable_paths_cache,omitempty"`
 	PathsCacheTTL           time.Duration          `yaml:"paths_cache_ttl,omitempty" json:"paths_cache_ttl,omitempty"`
 	PathsCachePurgeInterval time.Duration          `yaml:"paths_cache_purge_interval,omitempty" json:"paths_cache_purge_interval,omitempty"`
