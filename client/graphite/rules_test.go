@@ -64,14 +64,35 @@ func loadTestConfig(s string) *config.Config {
 }
 
 func TestDefaultPathsFromMetric(t *testing.T) {
-	expected := make([]string, 0)
-	expected = append(expected, "prefix."+
-		"test:metric"+
-		".many_chars.abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\"+
-		".owner.team-X"+
-		".testlabel.test:value")
-	actual := pathsFromMetric(metric, "prefix.", nil, nil)
-	if len(actual) != 1 || expected[0] != actual[0] {
+	expected := "prefix." +
+		"test:metric" +
+		".many_chars.abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\" +
+		".owner.team-X" +
+		".testlabel.test:value"
+	actual := pathsFromMetric(metric, FormatCarbon, "prefix.", nil, nil)
+	if len(actual) != 1 || expected != actual[0] {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+
+	expected = "prefix." +
+		"test:metric" +
+		";many_chars=abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\" +
+		";owner=team-X" +
+		";testlabel=test:value"
+
+	actual = pathsFromMetric(metric, FormatCarbonTags, "prefix.", nil, nil)
+	if len(actual) != 1 || expected != actual[0] {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+
+	expected = "prefix." +
+		"test:metric{" +
+		"many_chars=\"abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\\"" +
+		",owner=\"team-X\"" +
+		",testlabel=\"test:value\"" +
+		"}"
+	actual = pathsFromMetric(metric, FormatCarbonOpenMetrics, "prefix.", nil, nil)
+	if len(actual) != 1 || expected != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
 }
@@ -89,7 +110,7 @@ func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 		".owner.team-Y"+
 		".testlabel.test:value"+
 		".testlabel2.test:value2")
-	actual := pathsFromMetric(unmatchedMetric, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual := pathsFromMetric(unmatchedMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 1 || expected[0] != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -98,7 +119,7 @@ func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
-	actual := pathsFromMetric(metric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual := pathsFromMetric(metric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 1 || expected[0] != actual[0] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -114,7 +135,7 @@ func TestMultiTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
 	expected = append(expected, "tmpl_2.team-X.data.foo")
-	actual := pathsFromMetric(multiMatchMetric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual := pathsFromMetric(multiMatchMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 2 || expected[0] != actual[0] || expected[1] != actual[1] {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
@@ -129,7 +150,7 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 	}
 	t.Log(testConfig.Write.Rules[2])
 	expected := make([]string, 0)
-	actual := pathsFromMetric(skipedMetric, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual := pathsFromMetric(skipedMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	if len(actual) != 0 {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}

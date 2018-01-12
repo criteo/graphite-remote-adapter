@@ -39,6 +39,14 @@ var (
 			},
 		},
 	}
+	expectedLabels = []*prompb.Label{
+		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
+		&prompb.Label{Name: "owner", Value: "team-X"},
+	}
+	expectedSamples = []*prompb.Sample{
+		&prompb.Sample{Value: float64(18), Timestamp: int64(0)},
+		&prompb.Sample{Value: float64(42), Timestamp: int64(300000)},
+	}
 )
 
 func fakeFetchExpandURL(ctx context.Context, l log.Logger, u *url.URL) ([]byte, error) {
@@ -53,6 +61,11 @@ func fakeFetchRenderURL(ctx context.Context, l log.Logger, u *url.URL) ([]byte, 
 	var body bytes.Buffer
 	if u.String() == "http://fakeHost:6666/render/?format=json&from=0&target=prometheus-prefix.test.owner.team-X&until=300" {
 		body.WriteString("[{\"target\": \"prometheus-prefix.test.owner.team-X\", \"datapoints\": [[18,0], [42,300]]}]")
+	} else if u.String() == "http://fakeHost:6666/render/?format=json&from=0&target=seriesByTag%28%22name%3Dprometheus-prefix.test%22%2C%22owner%3Dteam-x%22%29&until=300" {
+		body.WriteString("[")
+		body.WriteString("{\"target\": \"prometheus-prefix.test\", \"tags\": {\"owner\": \"team-X\", \"name\": \"prometheus-prefix.test\"}, \"datapoints\": [[18,0], [42,300]]},")
+		body.WriteString("{\"target\": \"prometheus-prefix.test\", \"tags\": {\"owner\": \"team-X\", \"name\": \"prometheus-prefix.test\", \"foo\": \"bar\"}, \"datapoints\": [[18,0], [42,300]]}")
+		body.WriteString("]")
 	}
 	return body.Bytes(), nil
 }
@@ -102,17 +115,65 @@ func TestInvalideQueryToTargets(t *testing.T) {
 func TestTargetToTimeseries(t *testing.T) {
 	fetchURL = fakeFetchRenderURL
 	expectedTs := &prompb.TimeSeries{
-		Labels: []*prompb.Label{
-			&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
-			&prompb.Label{Name: "owner", Value: "team-X"},
+		Labels:  expectedLabels,
+		Samples: expectedSamples,
+	}
+
+	actualTs, err := client.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300")
+	if !reflect.DeepEqual(err, nil) {
+		t.Errorf("Expected err: %s, got %s", nil, err)
+	}
+	if !reflect.DeepEqual(expectedTs, actualTs[0]) {
+		t.Errorf("Expected %s, got %s", expectedTs, actualTs[0])
+	}
+}
+
+func TestQueryTargetsWithTags(t *testing.T) {
+	fetchURL = fakeFetchRenderURL
+
+	labelMatchers := []*prompb.LabelMatcher{
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_EQ, Name: model.MetricNameLabel, Value: "test"},
+		&prompb.LabelMatcher{Type: prompb.LabelMatcher_EQ, Name: "owner", Value: "team-x"},
+	}
+	query := &prompb.Query{
+		StartTimestampMs: int64(0),
+		EndTimestampMs:   int64(300),
+		Matchers:         labelMatchers,
+	}
+
+	expectedTargets := []string{
+		"seriesByTag(\"name=prometheus-prefix.test\",\"owner=team-x\")",
+	}
+
+	expectedTs := []*prompb.TimeSeries{
+		&prompb.TimeSeries{
+			Labels:  expectedLabels,
+			Samples: expectedSamples,
 		},
-		Samples: []*prompb.Sample{
-			&prompb.Sample{Value: float64(18), Timestamp: int64(0)},
-			&prompb.Sample{Value: float64(42), Timestamp: int64(300000)},
+		&prompb.TimeSeries{
+			Labels: []*prompb.Label{
+				&prompb.Label{Name: "foo", Value: "bar"},
+				expectedLabels[0],
+				expectedLabels[1],
+			},
+			Samples: expectedSamples,
 		},
 	}
 
-	actualTs, _ := client.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300")
+	client.cfg.EnableTags = true
+	targets, err := client.queryToTargetsWithTags(nil, query)
+	if err != nil {
+		t.Errorf("Unexpected err: %s", err)
+	}
+	if !reflect.DeepEqual(expectedTargets, targets) {
+		t.Errorf("Expected %s, got %s", expectedTargets, targets)
+	}
+
+	actualTs, err := client.targetToTimeseries(nil, targets[0], "0", "300")
+	client.cfg.EnableTags = false
+	if err != nil {
+		t.Errorf("Unexpected err: %s", err)
+	}
 	if !reflect.DeepEqual(expectedTs, actualTs) {
 		t.Errorf("Expected %s, got %s", expectedTs, actualTs)
 	}

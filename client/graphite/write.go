@@ -83,7 +83,7 @@ func (c *Client) Write(samples model.Samples) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		paths := pathsFromMetric(s.Metric, c.cfg.DefaultPrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
+		paths := pathsFromMetric(s.Metric, c.format, c.cfg.DefaultPrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)

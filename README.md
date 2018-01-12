@@ -64,6 +64,7 @@ read:
   ignore_error: true
 graphite:
   default_prefix: test.prefix.
+  enable_tags: false
   read:
     url: http://localhost:8888
   write:
@@ -95,6 +96,12 @@ graphite:
       continue: false
 
 ```
+
+## Support for Tags
+
+Graphite 1.1.0 supports tags: http://graphite.readthedocs.io/en/latest/tags.html, you can
+enable support for tags in the remote adapter with `--graphite.enable-tags` or in the
+configuration file.
 
 ## Configuring Prometheus
 

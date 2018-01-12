@@ -42,6 +42,7 @@ type Client struct {
 	readTimeout    time.Duration
 	readDelay      time.Duration
 	ignoredSamples prometheus.Counter
+	format         Format
 
 	carbonCon               net.Conn
 	carbonLastReconnectTime time.Time
@@ -63,10 +64,22 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 			"PathsCachePurgeInterval", cfg.Graphite.Write.PathsCachePurgeInterval,
 			"msg", "Paths cache initialized")
 	}
+
+	// Which format are we using to write points?
+	format := FormatCarbon
+	if cfg.Graphite.EnableTags {
+		if cfg.Graphite.UseOpenMetricsFormat {
+			format = FormatCarbonOpenMetrics
+		} else {
+			format = FormatCarbonTags
+		}
+	}
+
 	return &Client{
 		logger:       logger,
 		cfg:          &cfg.Graphite,
 		writeTimeout: cfg.Write.Timeout,
+		format:       format,
 		readTimeout:  cfg.Read.Timeout,
 		readDelay:    cfg.Read.Delay,
 		ignoredSamples: prometheus.NewCounter(

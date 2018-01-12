@@ -387,6 +387,8 @@ func (s *Server) read(logger log.Logger, w http.ResponseWriter, r *http.Request)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	}
+	if resp == nil {
 		resp = &prompb.ReadResponse{
 			Results: []*prompb.QueryResult{
 				{Timeseries: make([]*prompb.TimeSeries, 0, 0)},
