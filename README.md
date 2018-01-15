@@ -69,6 +69,7 @@ graphite:
   write:
     carbon_address: localhost:2003
     carbon_transport: tcp
+    carbon_reconnect_interval: 5m
     enable_paths_cache: true
     paths_cache_ttl: 1h
     paths_cache_purge_interval: 2h
