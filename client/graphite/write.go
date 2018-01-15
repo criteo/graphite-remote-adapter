@@ -92,6 +92,10 @@ func (c *Client) Write(samples model.Samples) error {
 		}
 	}
 
+	// We are going to use the socket, lock it.
+	c.carbonConLock.Lock()
+	defer c.carbonConLock.Unlock()
+
 	conn, err := c.connectToCarbon()
 	if err != nil {
 		return err
