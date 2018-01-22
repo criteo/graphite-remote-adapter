@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.13] - 2018-01-22
+### Added
+- Support for Tags
+
+### Changed
+- Reuse TCP connection
+
 ## [0.0.12] - 2018-01-02
 ### Breaking changes
 - Config file is now top-level instead of Graphite specific
@@ -74,7 +81,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...HEAD
+[0.0.13]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.9...v0.0.10
