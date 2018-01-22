@@ -33,4 +33,8 @@ func AddCommandLine(app *kingpin.Application, cfg *Config) {
 	app.Flag("graphite.write.paths-cache-purge-interval",
 		"Duration between purges for expired items in the paths cache.").
 		DurationVar(&cfg.Write.PathsCachePurgeInterval)
+
+	app.Flag("graphite.enable-tags",
+		"Use Graphite tags.").
+		BoolVar(&cfg.EnableTags)
 }

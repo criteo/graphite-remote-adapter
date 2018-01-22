@@ -27,7 +27,9 @@ import (
 
 var (
 	expectedConf = &Config{
-		DefaultPrefix: "test.prefix.",
+		DefaultPrefix:        "test.prefix.",
+		EnableTags:           true,
+		UseOpenMetricsFormat: true,
 		Read: ReadConfig{
 			URL: "greatGraphiteWebURL",
 		},

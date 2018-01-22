@@ -29,6 +29,14 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
+type Format int
+
+const (
+	FormatCarbon            Format = 1
+	FormatCarbonTags               = 2
+	FormatCarbonOpenMetrics        = 3
+)
+
 var (
 	pathsCache        *cache.Cache
 	pathsCacheEnabled = false
@@ -66,7 +74,7 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 	return true
 }
 
-func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templateData map[string]interface{}) []string {
+func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*config.Rule, templateData map[string]interface{}) []string {
 	if pathsCacheEnabled {
 		cachedPaths, cached := pathsCache.Get(m.Fingerprint().String())
 		if cached {
@@ -76,7 +84,7 @@ func pathsFromMetric(m model.Metric, prefix string, rules []*config.Rule, templa
 	paths, skipped := templatedPaths(m, rules, templateData)
 	// if it doesn't match any rule, use default path
 	if len(paths) == 0 && !skipped {
-		paths = append(paths, defaultPath(m, prefix))
+		paths = append(paths, defaultPath(m, format, prefix))
 	}
 	if pathsCacheEnabled {
 		pathsCache.Set(m.Fingerprint().String(), paths, cache.DefaultExpiration)
@@ -108,8 +116,9 @@ func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[strin
 	return paths, false
 }
 
-func defaultPath(m model.Metric, prefix string) string {
+func defaultPath(m model.Metric, format Format, prefix string) string {
 	var buffer bytes.Buffer
+	var lbuffer bytes.Buffer
 
 	buffer.WriteString(prefix)
 	buffer.WriteString(utils.Escape(string(m[model.MetricNameLabel])))
@@ -121,20 +130,68 @@ func defaultPath(m model.Metric, prefix string) string {
 	}
 	sort.Sort(labels)
 
-	// For each label, in order, add ".<label>.<value>".
+	first := true
 	for _, l := range labels {
-		v := m[l]
-
 		if l == model.MetricNameLabel || len(l) == 0 {
 			continue
 		}
-		// Since we use '.' instead of '=' to separate label and values
-		// it means that we can't have an '.' in the metric name. Fortunately
-		// this is prohibited in prometheus metrics.
-		buffer.WriteString(fmt.Sprintf(
-			".%s.%s", string(l), utils.Escape(string(v))))
+
+		k := string(l)
+		v := utils.Escape(string(m[l]))
+
+		if format == FormatCarbonOpenMetrics {
+			// https://github.com/RichiH/OpenMetrics/blob/master/metric_exposition_format.md
+			if !first {
+				lbuffer.WriteString(",")
+			}
+			lbuffer.WriteString(fmt.Sprintf("%s=\"%s\"", k, v))
+		} else if format == FormatCarbonTags {
+			// See http://graphite.readthedocs.io/en/latest/tags.html
+			lbuffer.WriteString(fmt.Sprintf(";%s=%s", k, v))
+		} else {
+			// For each label, in order, add ".<label>.<value>".
+			// Since we use '.' instead of '=' to separate label and values
+			// it means that we can't have an '.' in the metric name. Fortunately
+			// this is prohibited in prometheus metrics.
+			lbuffer.WriteString(fmt.Sprintf(".%s.%s", k, v))
+		}
+		first = false
+	}
+
+	if lbuffer.Len() > 0 {
+		if format == FormatCarbonOpenMetrics {
+			buffer.WriteRune('{')
+			buffer.Write(lbuffer.Bytes())
+			buffer.WriteRune('}')
+		} else {
+			buffer.Write(lbuffer.Bytes())
+		}
 	}
 	return buffer.String()
+}
+
+func metricLabelsFromTags(tags Tags, prefix string) ([]*prompb.Label, error) {
+	// It translates Graphite tags directly into label and values.
+	var labels []*prompb.Label
+	var names []string
+
+	// Sort tags  to have a deterministic order, better for tests.
+	for k, _ := range tags {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+
+	for _, k := range names {
+		v := tags[k]
+		if k == "name" {
+			v = strings.TrimPrefix(v, prefix)
+			labels = append(labels, &prompb.Label{Name: model.MetricNameLabel, Value: v})
+		} else {
+			labels = append(labels, &prompb.Label{Name: k, Value: v})
+		}
+	}
+
+	return labels, nil
 }
 
 func metricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {

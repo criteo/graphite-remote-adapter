@@ -29,7 +29,9 @@ import (
 
 // DefaultConfig is the default graphite configuration.
 var DefaultConfig = Config{
-	DefaultPrefix: "",
+	DefaultPrefix:        "",
+	EnableTags:           false,
+	UseOpenMetricsFormat: false,
 	Write: WriteConfig{
 		CarbonAddress:           "",
 		CarbonTransport:         "tcp",
@@ -45,9 +47,11 @@ var DefaultConfig = Config{
 
 // Config is the graphite configuration.
 type Config struct {
-	Write         WriteConfig `yaml:"write,omitempty" json:"write,omitempty"`
-	Read          ReadConfig  `yaml:"read,omitempty" json:"read,omitempty"`
-	DefaultPrefix string      `yaml:"default_prefix,omitempty" json:"default_prefix,omitempty"`
+	Write                WriteConfig `yaml:"write,omitempty" json:"write,omitempty"`
+	Read                 ReadConfig  `yaml:"read,omitempty" json:"read,omitempty"`
+	DefaultPrefix        string      `yaml:"default_prefix,omitempty" json:"default_prefix,omitempty"`
+	EnableTags           bool        `yaml:"enable_tags,omitempty" json:"enable_tags,omitempty"`
+	UseOpenMetricsFormat bool        `yaml:"openmetrics,omitempty" json:"openmetrics,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`

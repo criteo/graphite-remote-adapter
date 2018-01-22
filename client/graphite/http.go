@@ -34,6 +34,7 @@ type ExpandResponse struct {
 type RenderResponse struct {
 	Target     string       `yaml:"target,omitempty" json:"target,omitempty"`
 	Datapoints []*Datapoint `yaml:"datapoints,omitempty" json:"datapoints,omitempty"`
+	Tags       Tags         `yaml:"tags,omitempty" json:"tags,omitempty"`
 }
 
 // Datapoint pairs a timestamp to a value.
@@ -41,6 +42,9 @@ type Datapoint struct {
 	Value     *float64
 	Timestamp int64
 }
+
+// Tags
+type Tags map[string]string
 
 // UnmarshalJSON unmarshals a Datapoint from json
 func (d *Datapoint) UnmarshalJSON(b []byte) error {

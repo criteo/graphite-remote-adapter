@@ -27,6 +27,7 @@ import (
 	pmetric "github.com/prometheus/prometheus/storage/metric"
 
 	"golang.org/x/net/context"
+	"strings"
 )
 
 func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]string, error) {
@@ -75,6 +76,38 @@ func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]str
 	return targets, err
 }
 
+func (c *Client) queryToTargetsWithTags(ctx context.Context, query *prompb.Query) ([]string, error) {
+	tagSet := []string{}
+
+	for _, m := range query.Matchers {
+		var name string
+		var value string
+		if m.Name == model.MetricNameLabel {
+			name = "name"
+			value = c.cfg.DefaultPrefix + m.Value
+		} else {
+			name = m.Name
+			value = m.Value
+		}
+
+		switch m.Type {
+		case prompb.LabelMatcher_EQ:
+			tagSet = append(tagSet, "\""+name+"="+value+"\"")
+		case prompb.LabelMatcher_NEQ:
+			tagSet = append(tagSet, "\""+name+"!="+value+"\"")
+		case prompb.LabelMatcher_RE:
+			tagSet = append(tagSet, "\""+name+"=~^("+value+")$\"")
+		case prompb.LabelMatcher_NRE:
+			tagSet = append(tagSet, "\""+name+"!=~^("+value+")$\"")
+		default:
+			return nil, fmt.Errorf("unknown match type %v", m.Type)
+		}
+	}
+
+	targets := []string{"seriesByTag(" + strings.Join(tagSet, ",") + ")"}
+	return targets, nil
+}
+
 func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string, error) {
 	// Filter out targets that do not match the query's label matcher
 	var results []string
@@ -119,7 +152,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 	return results, nil
 }
 
-func (c *Client) targetToTimeseries(ctx context.Context, target string, from string, until string) (*prompb.TimeSeries, error) {
+func (c *Client) targetToTimeseries(ctx context.Context, target string, from string, until string) ([]*prompb.TimeSeries, error) {
 	renderURL, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
 		level.Warn(c.logger).Log(
@@ -143,23 +176,32 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 			"msg", "Error parsing render endpoint response body")
 		return nil, err
 	}
-	renderResponse := renderResponses[0]
 
-	ts := &prompb.TimeSeries{}
-	ts.Labels, err = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
-	if err != nil {
-		level.Warn(c.logger).Log(
-			"path", renderResponse.Target, "prefix", c.cfg.DefaultPrefix, "err", err)
-		return nil, err
-	}
-	for _, datapoint := range renderResponse.Datapoints {
-		timstampMs := datapoint.Timestamp * 1000
-		if datapoint.Value == nil {
-			continue
+	ret := make([]*prompb.TimeSeries, len(renderResponses))
+	for i, renderResponse := range renderResponses {
+		ts := &prompb.TimeSeries{}
+
+		if c.cfg.EnableTags {
+			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, c.cfg.DefaultPrefix)
+		} else {
+			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
 		}
-		ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstampMs})
+
+		if err != nil {
+			level.Warn(c.logger).Log(
+				"path", renderResponse.Target, "prefix", c.cfg.DefaultPrefix, "err", err)
+			return nil, err
+		}
+		for _, datapoint := range renderResponse.Datapoints {
+			timstampMs := datapoint.Timestamp * 1000
+			if datapoint.Value == nil {
+				continue
+			}
+			ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstampMs})
+		}
+		ret[i] = ts
 	}
-	return ts, nil
+	return ret, nil
 }
 
 func min(a, b int) int {
@@ -185,13 +227,24 @@ func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*pro
 	fromStr := strconv.Itoa(from)
 	untilStr := strconv.Itoa(until)
 
-	targets, err := c.queryToTargets(ctx, query)
+	targets := []string{}
+	var err error
+
+	if c.cfg.EnableTags {
+		targets, err = c.queryToTargetsWithTags(ctx, query)
+	} else {
+		// If we don't have tags we try to emulate then with normal paths.
+		targets, err = c.queryToTargets(ctx, query)
+	}
 	if err != nil {
 		return nil, err
 	}
 
+	level.Debug(c.logger).Log(
+		"targets", targets, "from", fromStr, "until", untilStr, "msg", "Fetching data")
 	c.fetchData(ctx, queryResult, targets, fromStr, untilStr)
 	return queryResult, nil
+
 }
 
 func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult, targets []string, fromStr string, untilStr string) {
@@ -200,6 +253,7 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 
 	wg := sync.WaitGroup{}
 
+	// TODO: Send multiple targets per query, Graphite supports that.
 	// Start only a few workers to avoid killing graphite.
 	for i := 0; i < maxFetchWorkers; i++ {
 		wg.Add(1)
@@ -214,23 +268,41 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 				if err != nil {
 					level.Warn(c.logger).Log("target", target, "err", err, "msg", "Error fetching and parsing target datapoints")
 				} else {
-					output <- ts
+					level.Debug(c.logger).Log("reading responses")
+					for _, t := range ts {
+						output <- t
+					}
 				}
 			}
 		}(fromStr, untilStr, ctx)
 	}
 
-	// Feed the inut.
+	// Feed the input.
 	for _, target := range targets {
 		input <- target
 	}
 	close(input)
 
-	wg.Wait()
-	close(output)
+	// Close the output as soon as all jobs are done.
+	go func() {
+		wg.Wait()
+		close(output)
+	}()
 
-	for ts := range output {
-		queryResult.Timeseries = append(queryResult.Timeseries, ts)
+	// Read output until channel is closed.
+	for {
+		done := false
+		select {
+		case ts := <-output:
+			if ts != nil {
+				queryResult.Timeseries = append(queryResult.Timeseries, ts)
+			}
+		default:
+			done = true
+		}
+		if done {
+			break
+		}
 	}
 }
 
