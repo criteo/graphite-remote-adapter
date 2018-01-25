@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Bug with empty config files
+
 ## [0.0.13] - 2018-01-22
 ### Added
 - Support for Tags

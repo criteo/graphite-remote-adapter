@@ -17,6 +17,8 @@ import (
 // Load parses the YAML input s into a Config.
 func Load(s string) (*Config, error) {
 	cfg := &Config{}
+	*cfg = DefaultConfig
+
 	err := yaml.Unmarshal([]byte(s), cfg)
 	if err != nil {
 		return nil, err
@@ -84,8 +86,9 @@ func (c Config) String() string {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultConfig
 	type plain Config
+
+	*c = DefaultConfig
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
@@ -103,6 +106,8 @@ type webOptions struct {
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (opts *webOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain webOptions
+
+	*opts = DefaultConfig.Web
 	if err := unmarshal((*plain)(opts)); err != nil {
 		return err
 	}
@@ -122,6 +127,8 @@ type readOptions struct {
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (opts *readOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain readOptions
+
+	*opts = DefaultConfig.Read
 	if err := unmarshal((*plain)(opts)); err != nil {
 		return err
 	}
@@ -139,6 +146,8 @@ type writeOptions struct {
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (opts *writeOptions) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain writeOptions
+
+	*opts = DefaultConfig.Write
 	if err := unmarshal((*plain)(opts)); err != nil {
 		return err
 	}
