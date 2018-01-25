@@ -41,7 +41,8 @@ var DefaultConfig = Config{
 		PathsCachePurgeInterval: 2 * time.Hour,
 	},
 	Read: ReadConfig{
-		URL: "",
+		URL:           "",
+		MaxPointDelta: time.Duration(0),
 	},
 }
 
@@ -78,6 +79,9 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // ReadConfig is the read graphite configuration.
 type ReadConfig struct {
 	URL string `yaml:"url,omitempty" json:"url,omitempty"`
+	// If set, MaxPointDelta is used to linearly interpolate intermediate points.
+	// It helps support prom1.x reading metrics with larger retention than staleness delta.
+	MaxPointDelta time.Duration `yaml:"max_point_delta,omitempty" json:"max_point_delta,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`

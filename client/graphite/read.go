@@ -26,8 +26,9 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 	pmetric "github.com/prometheus/prometheus/storage/metric"
 
-	"golang.org/x/net/context"
 	"strings"
+
+	"golang.org/x/net/context"
 )
 
 func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]string, error) {
@@ -192,16 +193,47 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 				"path", renderResponse.Target, "prefix", c.cfg.DefaultPrefix, "err", err)
 			return nil, err
 		}
-		for _, datapoint := range renderResponse.Datapoints {
-			timstampMs := datapoint.Timestamp * 1000
-			if datapoint.Value == nil {
-				continue
-			}
-			ts.Samples = append(ts.Samples, &prompb.Sample{Value: *datapoint.Value, Timestamp: timstampMs})
-		}
+
+		ts.Samples = samplesFromDatapoints(renderResponse.Datapoints, c.cfg.Read.MaxPointDelta)
+
 		ret[i] = ts
 	}
 	return ret, nil
+}
+
+func samplesFromDatapoints(datapoints []*Datapoint, maxPointDelta time.Duration) []*prompb.Sample {
+	samples := []*prompb.Sample{}
+	for i, datapoint := range datapoints {
+		timestampMs := datapoint.Timestamp * 1000
+		if datapoint.Value == nil {
+			continue
+		}
+		samples = append(samples, &prompb.Sample{
+			Value:     *datapoint.Value,
+			Timestamp: timestampMs})
+
+		// If not last point and interpolation is enabled,
+		// then linearly interpolate intermediate samples.
+		if (i+1) < len(datapoints) && maxPointDelta != time.Duration(0) {
+			intervalSecond := int64(maxPointDelta.Seconds())
+			nextDatapoint := datapoints[i+1]
+			if nextDatapoint.Value == nil {
+				continue
+			}
+
+			deltaSecond := nextDatapoint.Timestamp - datapoint.Timestamp
+			variation := (*nextDatapoint.Value - *datapoint.Value) / float64(deltaSecond)
+
+			for j := int64(1); j < deltaSecond/intervalSecond; j++ {
+				timestamp := datapoint.Timestamp + j*intervalSecond
+				value := *datapoint.Value + float64(timestamp-datapoint.Timestamp)*variation
+				samples = append(samples, &prompb.Sample{
+					Value:     value,
+					Timestamp: timestamp * 1000})
+			}
+		}
+	}
+	return samples
 }
 
 func min(a, b int) int {

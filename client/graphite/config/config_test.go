@@ -31,7 +31,8 @@ var (
 		EnableTags:           true,
 		UseOpenMetricsFormat: true,
 		Read: ReadConfig{
-			URL: "greatGraphiteWebURL",
+			URL:           "greatGraphiteWebURL",
+			MaxPointDelta: 5 * time.Minute,
 		},
 		Write: WriteConfig{
 			CarbonAddress:           "greatCarbonAddress",

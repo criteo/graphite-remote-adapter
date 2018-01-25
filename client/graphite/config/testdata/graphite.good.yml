@@ -3,6 +3,7 @@ enable_tags: true
 openmetrics: true
 read:
   url: greatGraphiteWebURL
+  max_point_delta: 5m
 write:
   carbon_address: greatCarbonAddress
   carbon_transport: tcp

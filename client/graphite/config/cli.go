@@ -14,6 +14,10 @@ func AddCommandLine(app *kingpin.Application, cfg *Config) {
 		"The URL of the remote Graphite Web server to send samples to.").
 		StringVar(&cfg.Read.URL)
 
+	app.Flag("graphite.read.max-point-delta",
+		"If set, interval used to linearly interpolate intermediate points.").
+		DurationVar(&cfg.Read.MaxPointDelta)
+
 	app.Flag("graphite.write.carbon-address",
 		"The host:port of the Graphite server to send samples to.").
 		StringVar(&cfg.Write.CarbonAddress)
