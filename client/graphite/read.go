@@ -165,7 +165,7 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 	body, err := fetchURL(ctx, c.logger, renderURL)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", renderURL, "err", err, "msg", "Error fetching URL")
+			"url", renderURL, "err", err, "ctx", ctx, "msg", "Error fetching URL")
 		return nil, err
 	}
 
@@ -249,7 +249,7 @@ func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*pro
 
 func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult, targets []string, fromStr string, untilStr string) {
 	input := make(chan string, len(targets))
-	output := make(chan *prompb.TimeSeries, len(targets))
+	output := make(chan *prompb.TimeSeries, len(targets)+1)
 
 	wg := sync.WaitGroup{}
 
@@ -286,6 +286,7 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 	// Close the output as soon as all jobs are done.
 	go func() {
 		wg.Wait()
+		output <- nil
 		close(output)
 	}()
 
@@ -296,9 +297,10 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 		case ts := <-output:
 			if ts != nil {
 				queryResult.Timeseries = append(queryResult.Timeseries, ts)
+			} else {
+				// A nil result means that we are done.
+				done = true
 			}
-		default:
-			done = true
 		}
 		if done {
 			break
