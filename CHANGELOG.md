@@ -6,8 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.0.14] - 2018-01-29
+
 ### Fixed
 - Bug with empty config files
+- Fixed reads
 
 ## [0.0.13] - 2018-01-22
 ### Added
@@ -84,7 +87,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...HEAD
+[0.0.14]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.10...v0.0.11
