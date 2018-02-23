@@ -17,6 +17,7 @@ package graphite
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -31,7 +32,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]string, error) {
+func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query, graphitePrefix string) ([]string, error) {
 	// Parse metric name from query
 	var name string
 
@@ -42,12 +43,12 @@ func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]str
 	}
 
 	if name == "" {
-		err := fmt.Errorf("Invalide remote query: no %s label provided", model.MetricNameLabel)
+		err := fmt.Errorf("Invalid remote query: no %s label provided", model.MetricNameLabel)
 		return nil, err
 	}
 
 	// Prepare the url to fetch
-	queryStr := c.cfg.DefaultPrefix + name + ".**"
+	queryStr := graphitePrefix + name + ".**"
 	expandURL, err := prepareURL(c.cfg.Read.URL, expandEndpoint, map[string]string{"format": "json", "leavesOnly": "1", "query": queryStr})
 	if err != nil {
 		level.Warn(c.logger).Log(
@@ -73,11 +74,11 @@ func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query) ([]str
 		return nil, err
 	}
 
-	targets, err := c.filterTargets(query, expandResponse.Results)
+	targets, err := c.filterTargets(query, expandResponse.Results, graphitePrefix)
 	return targets, err
 }
 
-func (c *Client) queryToTargetsWithTags(ctx context.Context, query *prompb.Query) ([]string, error) {
+func (c *Client) queryToTargetsWithTags(ctx context.Context, query *prompb.Query, graphitePrefix string) ([]string, error) {
 	tagSet := []string{}
 
 	for _, m := range query.Matchers {
@@ -85,7 +86,7 @@ func (c *Client) queryToTargetsWithTags(ctx context.Context, query *prompb.Query
 		var value string
 		if m.Name == model.MetricNameLabel {
 			name = "name"
-			value = c.cfg.DefaultPrefix + m.Value
+			value = graphitePrefix + m.Value
 		} else {
 			name = m.Name
 			value = m.Value
@@ -109,15 +110,15 @@ func (c *Client) queryToTargetsWithTags(ctx context.Context, query *prompb.Query
 	return targets, nil
 }
 
-func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string, error) {
+func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePrefix string) ([]string, error) {
 	// Filter out targets that do not match the query's label matcher
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels, err := metricLabelsFromPath(target, c.cfg.DefaultPrefix)
+		labels, err := metricLabelsFromPath(target, graphitePrefix)
 		if err != nil {
 			level.Warn(c.logger).Log(
-				"path", target, "prefix", c.cfg.DefaultPrefix, "err", err)
+				"path", target, "prefix", graphitePrefix, "err", err)
 			continue
 		}
 		labelSet := make(model.LabelSet, len(labels))
@@ -127,7 +128,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 		}
 
 		level.Debug(c.logger).Log(
-			"target", target, "prefix", c.cfg.DefaultPrefix,
+			"target", target, "prefix", graphitePrefix,
 			"labels", labelSet, "msg", "Filtering target")
 
 		// See if all matchers are satisfied.
@@ -153,7 +154,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string) ([]string,
 	return results, nil
 }
 
-func (c *Client) targetToTimeseries(ctx context.Context, target string, from string, until string) ([]*prompb.TimeSeries, error) {
+func (c *Client) targetToTimeseries(ctx context.Context, target string, from string, until string, graphitePrefix string) ([]*prompb.TimeSeries, error) {
 	renderURL, err := prepareURL(c.cfg.Read.URL, renderEndpoint, map[string]string{"format": "json", "from": from, "until": until, "target": target})
 	if err != nil {
 		level.Warn(c.logger).Log(
@@ -183,14 +184,14 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 		ts := &prompb.TimeSeries{}
 
 		if c.cfg.EnableTags {
-			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, c.cfg.DefaultPrefix)
+			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, graphitePrefix)
 		} else {
-			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, c.cfg.DefaultPrefix)
+			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, graphitePrefix)
 		}
 
 		if err != nil {
 			level.Warn(c.logger).Log(
-				"path", renderResponse.Target, "prefix", c.cfg.DefaultPrefix, "err", err)
+				"path", renderResponse.Target, "prefix", graphitePrefix, "err", err)
 			return nil, err
 		}
 
@@ -243,7 +244,7 @@ func min(a, b int) int {
 	return b
 }
 
-func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*prompb.QueryResult, error) {
+func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query, graphitePrefix string) (*prompb.QueryResult, error) {
 	queryResult := &prompb.QueryResult{}
 
 	now := int(time.Now().Unix())
@@ -263,10 +264,10 @@ func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*pro
 	var err error
 
 	if c.cfg.EnableTags {
-		targets, err = c.queryToTargetsWithTags(ctx, query)
+		targets, err = c.queryToTargetsWithTags(ctx, query, graphitePrefix)
 	} else {
 		// If we don't have tags we try to emulate then with normal paths.
-		targets, err = c.queryToTargets(ctx, query)
+		targets, err = c.queryToTargets(ctx, query, graphitePrefix)
 	}
 	if err != nil {
 		return nil, err
@@ -274,12 +275,12 @@ func (c *Client) handleReadQuery(ctx context.Context, query *prompb.Query) (*pro
 
 	level.Debug(c.logger).Log(
 		"targets", targets, "from", fromStr, "until", untilStr, "msg", "Fetching data")
-	c.fetchData(ctx, queryResult, targets, fromStr, untilStr)
+	c.fetchData(ctx, queryResult, targets, fromStr, untilStr, graphitePrefix)
 	return queryResult, nil
 
 }
 
-func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult, targets []string, fromStr string, untilStr string) {
+func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult, targets []string, fromStr string, untilStr string, graphitePrefix string) {
 	input := make(chan string, len(targets))
 	output := make(chan *prompb.TimeSeries, len(targets)+1)
 
@@ -296,7 +297,7 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 			for target := range input {
 				// We simply ignore errors here as it is better to return "some" data
 				// than nothing.
-				ts, err := c.targetToTimeseries(ctx, target, fromStr, untilStr)
+				ts, err := c.targetToTimeseries(ctx, target, fromStr, untilStr, graphitePrefix)
 				if err != nil {
 					level.Warn(c.logger).Log("target", target, "err", err, "msg", "Error fetching and parsing target datapoints")
 				} else {
@@ -341,7 +342,7 @@ func (c *Client) fetchData(ctx context.Context, queryResult *prompb.QueryResult,
 }
 
 // Read implements the client.Reader interface.
-func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
+func (c *Client) Read(req *prompb.ReadRequest, r *http.Request) (*prompb.ReadResponse, error) {
 	level.Debug(c.logger).Log("req", req, "msg", "Remote read")
 
 	if c.cfg.Read.URL == "" {
@@ -351,9 +352,15 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.readTimeout)
 	defer cancel()
 
+	graphitePrefix, err := c.getGraphitePrefix(r)
+	if err != nil {
+		level.Warn(c.logger).Log("prefix", graphitePrefix, "err", err)
+		return nil, err
+	}
+
 	resp := &prompb.ReadResponse{}
 	for _, query := range req.Queries {
-		queryResult, err := c.handleReadQuery(ctx, query)
+		queryResult, err := c.handleReadQuery(ctx, query, graphitePrefix)
 		if err != nil {
 			return nil, err
 		}

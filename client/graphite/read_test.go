@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
@@ -29,16 +28,6 @@ import (
 )
 
 var (
-	client = &Client{
-		logger: log.NewNopLogger(),
-		cfg: &config.Config{
-			DefaultPrefix: "prometheus-prefix.",
-			Write:         config.WriteConfig{},
-			Read: config.ReadConfig{
-				URL: "http://fakeHost:6666",
-			},
-		},
-	}
 	expectedLabels = []*prompb.Label{
 		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
 		&prompb.Label{Name: "owner", Value: "team-X"},
@@ -88,25 +77,25 @@ func TestQueryToTargets(t *testing.T) {
 		Matchers:         labelMatchers,
 	}
 
-	actualTargets, _ := client.queryToTargets(nil, query)
+	actualTargets, _ := testClient.queryToTargets(nil, query, testClient.cfg.DefaultPrefix)
 	if !reflect.DeepEqual(expectedTargets, actualTargets) {
 		t.Errorf("Expected %s, got %s", expectedTargets, actualTargets)
 	}
 }
 
-func TestInvalideQueryToTargets(t *testing.T) {
-	expectedErr := fmt.Errorf("Invalide remote query: no %s label provided", model.MetricNameLabel)
+func TestInvalidQueryToTargets(t *testing.T) {
+	expectedErr := fmt.Errorf("Invalid remote query: no %s label provided", model.MetricNameLabel)
 
 	labelMatchers := []*prompb.LabelMatcher{
 		&prompb.LabelMatcher{Type: prompb.LabelMatcher_EQ, Name: "labelname", Value: "labelvalue"},
 	}
-	invalideQuery := &prompb.Query{
+	invalidQuery := &prompb.Query{
 		StartTimestampMs: int64(0),
 		EndTimestampMs:   int64(300),
 		Matchers:         labelMatchers,
 	}
 
-	_, err := client.queryToTargets(nil, invalideQuery)
+	_, err := testClient.queryToTargets(nil, invalidQuery, testClient.cfg.DefaultPrefix)
 	if !reflect.DeepEqual(err, expectedErr) {
 		t.Errorf("Error from queryToTargets not returned.  Expected %v, got %v", expectedErr, err)
 	}
@@ -119,7 +108,7 @@ func TestTargetToTimeseries(t *testing.T) {
 		Samples: expectedSamples,
 	}
 
-	actualTs, err := client.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300")
+	actualTs, err := testClient.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300", testClient.cfg.DefaultPrefix)
 	if !reflect.DeepEqual(err, nil) {
 		t.Errorf("Expected err: %s, got %s", nil, err)
 	}
@@ -160,8 +149,8 @@ func TestQueryTargetsWithTags(t *testing.T) {
 		},
 	}
 
-	client.cfg.EnableTags = true
-	targets, err := client.queryToTargetsWithTags(nil, query)
+	testClient.cfg.EnableTags = true
+	targets, err := testClient.queryToTargetsWithTags(nil, query, testClient.cfg.DefaultPrefix)
 	if err != nil {
 		t.Errorf("Unexpected err: %s", err)
 	}
@@ -169,8 +158,8 @@ func TestQueryTargetsWithTags(t *testing.T) {
 		t.Errorf("Expected %s, got %s", expectedTargets, targets)
 	}
 
-	actualTs, err := client.targetToTimeseries(nil, targets[0], "0", "300")
-	client.cfg.EnableTags = false
+	actualTs, err := testClient.targetToTimeseries(nil, targets[0], "0", "300", testClient.cfg.DefaultPrefix)
+	testClient.cfg.EnableTags = false
 	if err != nil {
 		t.Errorf("Unexpected err: %s", err)
 	}
