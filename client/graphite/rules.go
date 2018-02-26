@@ -81,9 +81,9 @@ func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*conf
 			return cachedPaths.([]string)
 		}
 	}
-	paths, skipped := templatedPaths(m, rules, templateData)
+	paths, stop := templatedPaths(m, rules, templateData)
 	// if it doesn't match any rule, use default path
-	if len(paths) == 0 && !skipped {
+	if !stop {
 		paths = append(paths, defaultPath(m, format, prefix))
 	}
 	if pathsCacheEnabled {
@@ -94,6 +94,7 @@ func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*conf
 
 func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[string]interface{}) ([]string, bool) {
 	var paths []string
+	var stop = false
 	for _, rule := range rules {
 		match := match(m, rule.Match, rule.MatchRE)
 		if !match {
@@ -109,11 +110,12 @@ func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[strin
 		rule.Tmpl.Execute(&path, context)
 		paths = append(paths, path.String())
 
+		stop = !rule.Continue
 		if rule.Continue == false {
 			break
 		}
 	}
-	return paths, false
+	return paths, stop
 }
 
 func defaultPath(m model.Metric, format Format, prefix string) string {

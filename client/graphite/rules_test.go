@@ -14,11 +14,11 @@
 package graphite
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
@@ -29,6 +29,12 @@ var (
 		model.MetricNameLabel: "test:metric",
 		"testlabel":           "test:value",
 		"owner":               "team-X",
+		"many_chars":          "abc!ABC:012-3!45ö67~89./(){},=.\"\\",
+	}
+	metricY = model.Metric{
+		model.MetricNameLabel: "test:metric",
+		"testlabel":           "test:value",
+		"owner":               "team-Y",
 		"many_chars":          "abc!ABC:012-3!45ö67~89./(){},=.\"\\",
 	}
 
@@ -47,7 +53,11 @@ write:
       owner: team-X
       testlabel2:   test:value2
     template: 'tmpl_2.{{.labels.owner}}.{{.shared}}'
-    continue: true
+    continue: false
+  - match:
+      owner: team-Y
+    template: 'tmpl_3.{{.labels.owner}}.{{.shared}}'
+    continue: false
   - match:
       owner: team-Z
     continue: false`
@@ -70,9 +80,7 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		".owner.team-X" +
 		".testlabel.test:value"
 	actual := pathsFromMetric(metric, FormatCarbon, "prefix.", nil, nil)
-	if len(actual) != 1 || expected != actual[0] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	require.Equal(t, expected, actual[0])
 
 	expected = "prefix." +
 		"test:metric" +
@@ -81,9 +89,7 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		";testlabel=test:value"
 
 	actual = pathsFromMetric(metric, FormatCarbonTags, "prefix.", nil, nil)
-	if len(actual) != 1 || expected != actual[0] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	require.Equal(t, expected, actual[0])
 
 	expected = "prefix." +
 		"test:metric{" +
@@ -92,37 +98,43 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		",testlabel=\"test:value\"" +
 		"}"
 	actual = pathsFromMetric(metric, FormatCarbonOpenMetrics, "prefix.", nil, nil)
-	if len(actual) != 1 || expected != actual[0] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	require.Equal(t, expected, actual[0])
 }
 
 func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 	unmatchedMetric := model.Metric{
 		model.MetricNameLabel: "test:metric",
 		"testlabel":           "test:value",
-		"owner":               "team-Y",
+		"owner":               "team-K",
 		"testlabel2":          "test:value2",
 	}
 	expected := make([]string, 0)
 	expected = append(expected, "prefix."+
 		"test:metric"+
-		".owner.team-Y"+
+		".owner.team-K"+
 		".testlabel.test:value"+
 		".testlabel2.test:value2")
 	actual := pathsFromMetric(unmatchedMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
-	if len(actual) != 1 || expected[0] != actual[0] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	require.Equal(t, expected, actual)
 }
 
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
+	expected = append(expected, "tmpl_3.team-Y.data.foo")
+	actual := pathsFromMetric(metricY, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	require.Equal(t, expected, actual)
+}
+
+func TestTemplatedPathsFromMetricWithDefault(t *testing.T) {
+	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
-	actual := pathsFromMetric(metric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
-	if len(actual) != 1 || expected[0] != actual[0] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	expected = append(expected, "prefix."+
+		"test:metric"+
+		".many_chars.abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\"+
+		".owner.team-X"+
+		".testlabel.test:value")
+	actual := pathsFromMetric(metric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	require.Equal(t, expected, actual)
 }
 
 func TestMultiTemplatedPathsFromMetric(t *testing.T) {
@@ -135,10 +147,8 @@ func TestMultiTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
 	expected = append(expected, "tmpl_2.team-X.data.foo")
-	actual := pathsFromMetric(multiMatchMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
-	if len(actual) != 2 || expected[0] != actual[0] || expected[1] != actual[1] {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	actual := pathsFromMetric(multiMatchMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	require.Equal(t, expected, actual)
 }
 
 func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
@@ -149,11 +159,8 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 		"testlabel2":          "test:value2",
 	}
 	t.Log(testConfig.Write.Rules[2])
-	expected := make([]string, 0)
 	actual := pathsFromMetric(skipedMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
-	if len(actual) != 0 {
-		t.Errorf("Expected %s, got %s", expected, actual)
-	}
+	require.Empty(t, actual)
 }
 
 func TestMetricLabelsFromPath(t *testing.T) {
@@ -164,7 +171,5 @@ func TestMetricLabelsFromPath(t *testing.T) {
 		&prompb.Label{Name: "owner", Value: "team-X"},
 	}
 	actualLabels, _ := metricLabelsFromPath(path, prefix)
-	if !reflect.DeepEqual(expectedLabels, actualLabels) {
-		t.Errorf("Expected %s, got %s", expectedLabels, actualLabels)
-	}
+	require.Equal(t, expectedLabels, actualLabels)
 }
