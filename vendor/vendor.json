@@ -355,6 +355,12 @@
 			"revisionTime": "2017-10-18T19:55:50Z"
 		},
 		{
+			"checksumSHA1": "LuFv4/jlrmFNnDb/5SCSEPAM9vU=",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
+			"revisionTime": "2016-01-10T10:55:54Z"
+		},
+		{
 			"checksumSHA1": "8oKQtUZLRuxPAQ9bHKqPkOda0hM=",
 			"path": "github.com/prometheus/client_golang/prometheus",
 			"revision": "de4d4ffe63b9eff7f27484fdef6e421597e6abb4",
@@ -503,6 +509,18 @@
 			"path": "github.com/sirupsen/logrus",
 			"revision": "85b1699d505667d13f8ac4478c1debbf85d6c5de",
 			"revisionTime": "2017-06-08T22:14:41Z"
+		},
+		{
+			"checksumSHA1": "5QKvAdxb0E47Nzn7iI25AfgAvOI=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "be8372ae8ec5c6daaed3cc28ebf73c54b737c240",
+			"revisionTime": "2018-02-02T15:35:43Z"
+		},
+		{
+			"checksumSHA1": "3Y2ZemkxaOSr6yq5xAyItl/vYMk=",
+			"path": "github.com/stretchr/testify/require",
+			"revision": "be8372ae8ec5c6daaed3cc28ebf73c54b737c240",
+			"revisionTime": "2018-02-02T15:35:43Z"
 		},
 		{
 			"checksumSHA1": "HcDa/j4eMiKGYEo8qmrW+2NDFcE=",
