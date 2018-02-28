@@ -5,8 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [0.0.15] - 2018-02-28
 ### Added
 - Support for larger retention than prom1.x staleness delta
+- Support for custom prefix in the query string
 
 ## [0.0.14] - 2018-01-29
 
@@ -89,7 +92,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...HEAD
+[0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.11...v0.0.12
