@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/http"
+	"time"
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
-	"time"
 )
 
 func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
@@ -73,9 +74,15 @@ func (c *Client) disconnectFromCarbon() {
 }
 
 // Write implements the client.Writer interface.
-func (c *Client) Write(samples model.Samples) error {
+func (c *Client) Write(samples model.Samples, r *http.Request) error {
 	if c.cfg.Write.CarbonAddress == "" {
 		return nil
+	}
+
+	graphitePrefix, err := c.getGraphitePrefix(r)
+	if err != nil {
+		level.Warn(c.logger).Log("prefix", graphitePrefix, "err", err)
+		return err
 	}
 
 	level.Debug(c.logger).Log(
@@ -83,7 +90,7 @@ func (c *Client) Write(samples model.Samples) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		paths := pathsFromMetric(s.Metric, c.format, c.cfg.DefaultPrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
+		paths := pathsFromMetric(s.Metric, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)

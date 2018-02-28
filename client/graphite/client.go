@@ -15,6 +15,9 @@
 package graphite
 
 import (
+	"net"
+	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -25,7 +28,6 @@ import (
 
 	graphiteCfg "github.com/criteo/graphite-remote-adapter/client/graphite/config"
 	"github.com/criteo/graphite-remote-adapter/config"
-	"net"
 )
 
 const (
@@ -110,4 +112,17 @@ func (c *Client) Name() string {
 func (c *Client) String() string {
 	// TODO: add more stuff here.
 	return c.cfg.String()
+}
+
+// Get graphite prefix
+func (c *Client) getGraphitePrefix(r *http.Request) (string, error) {
+	urlValues, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return "", err
+	}
+
+	if graphitePrefix, ok := urlValues["graphite.default-prefix"]; ok {
+		return graphitePrefix[0], nil
+	}
+	return c.cfg.DefaultPrefix, nil
 }

@@ -14,6 +14,8 @@
 package client
 
 import (
+	"net/http"
+
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
@@ -27,12 +29,12 @@ type Client interface {
 
 // Writer is a client taht sends a batch of samples to remote.
 type Writer interface {
-	Write(samples model.Samples) error
+	Write(samples model.Samples, r *http.Request) error
 	Client
 }
 
 // Reader is a client that read samples from remote.
 type Reader interface {
-	Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error)
+	Read(req *prompb.ReadRequest, r *http.Request) (*prompb.ReadResponse, error)
 	Client
 }

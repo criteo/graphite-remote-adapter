@@ -333,7 +333,7 @@ func (s *Server) write(logger log.Logger, w http.ResponseWriter, r *http.Request
 	for _, w := range s.writers {
 		wg.Add(1)
 		go func(rw client.Writer) {
-			sendSamples(logger, rw, samples)
+			sendSamples(logger, rw, samples, r)
 			wg.Done()
 		}(w)
 	}
@@ -378,7 +378,7 @@ func (s *Server) read(logger log.Logger, w http.ResponseWriter, r *http.Request)
 	reader := s.readers[0]
 
 	var resp *prompb.ReadResponse
-	resp, err = reader.Read(&req)
+	resp, err = reader.Read(&req, r)
 	if err != nil {
 		level.Warn(logger).Log(
 			"query", req, "storage", reader.Name(),
@@ -431,9 +431,9 @@ func protoToSamples(req *prompb.WriteRequest) model.Samples {
 	return samples
 }
 
-func sendSamples(logger log.Logger, w client.Writer, samples model.Samples) {
+func sendSamples(logger log.Logger, w client.Writer, samples model.Samples, r *http.Request) {
 	begin := time.Now()
-	err := w.Write(samples)
+	err := w.Write(samples, r)
 	duration := time.Since(begin).Seconds()
 	if err != nil {
 		level.Warn(logger).Log(
