@@ -86,8 +86,9 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 		readDelay:    cfg.Read.Delay,
 		ignoredSamples: prometheus.NewCounter(
 			prometheus.CounterOpts{
-				Name: "prometheus_graphite_ignored_samples_total",
-				Help: "The total number of samples not sent to Graphite due to unsupported float values (Inf, -Inf, NaN).",
+				Namespace: "remote_adapter_graphite",
+				Name:      "ignored_samples_total",
+				Help:      "The total number of samples not sent to Graphite due to unsupported float values (Inf, -Inf, NaN).",
 			},
 		),
 		carbonCon:               nil,

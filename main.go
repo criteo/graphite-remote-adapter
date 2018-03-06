@@ -43,32 +43,39 @@ import (
 	"github.com/criteo/graphite-remote-adapter/config"
 )
 
+// Constants for instrumentation.
+const namespace = "remote_adapter"
+
 var (
 	receivedSamples = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "received_samples_total",
-			Help: "Total number of received samples.",
+			Namespace: namespace,
+			Name:      "received_samples_total",
+			Help:      "Total number of received samples.",
 		},
 	)
 	sentSamples = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "sent_samples_total",
-			Help: "Total number of processed samples sent to remote storage.",
+			Namespace: namespace,
+			Name:      "sent_samples_total",
+			Help:      "Total number of processed samples sent to remote storage.",
 		},
 		[]string{"remote"},
 	)
 	failedSamples = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "failed_samples_total",
-			Help: "Total number of processed samples which failed on send to remote storage.",
+			Namespace: namespace,
+			Name:      "failed_samples_total",
+			Help:      "Total number of processed samples which failed on send to remote storage.",
 		},
 		[]string{"remote"},
 	)
 	sentBatchDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "sent_batch_duration_seconds",
-			Help:    "Duration of sample batch send calls to the remote storage.",
-			Buckets: prometheus.DefBuckets,
+			Namespace: namespace,
+			Name:      "sent_batch_duration_seconds",
+			Help:      "Duration of sample batch send calls to the remote storage.",
+			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{"remote"},
 	)
