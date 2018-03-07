@@ -116,3 +116,15 @@ remote_write:
 remote_read:
   - url: "http://localhost:9201/read"
 ```
+
+Since the 0.0.15, a custom prefix can be set in the query string and this will replace the default one. This could be useful if you are using the graphite remote adapter for multiple Prometheus instances with different prefix.
+
+```yaml
+# Remote write configuration.
+remote_write:
+  - url: "http://localhost:9201/write?graphite.default-prefix=customprefix."
+
+# Remote read configuration.
+remote_read:
+  - url: "http://localhost:9201/read?graphite.default-prefix=customprefix."
+```
