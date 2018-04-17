@@ -107,8 +107,12 @@ func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[strin
 
 		context := loadContext(templateData, m)
 		var path bytes.Buffer
-		rule.Tmpl.Execute(&path, context)
-		paths = append(paths, path.String())
+		err := rule.Tmpl.Execute(&path, context)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			paths = append(paths, path.String())
+		}
 
 		stop = !rule.Continue
 		if rule.Continue == false {
