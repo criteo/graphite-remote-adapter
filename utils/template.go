@@ -14,12 +14,16 @@
 package utils
 
 import (
+	"errors"
 	"strings"
 	"text/template"
 )
 
-func replace(input interface{}, from string, to string) string {
-	return strings.Replace(input.(string), from, to, -1)
+func replace(input interface{}, from string, to string) (string, error) {
+	if input == nil {
+		return "", errors.New("input does not exist, cannot replace")
+	}
+	return strings.Replace(input.(string), from, to, -1), nil
 }
 
 func split(input interface{}, delimiter string) ([]string, error) {

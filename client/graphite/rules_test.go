@@ -79,8 +79,9 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		".many_chars.abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\" +
 		".owner.team-X" +
 		".testlabel.test:value"
-	actual := pathsFromMetric(metric, FormatCarbon, "prefix.", nil, nil)
+	actual, err := pathsFromMetric(metric, FormatCarbon, "prefix.", nil, nil)
 	require.Equal(t, expected, actual[0])
+	require.Empty(t, err)
 
 	expected = "prefix." +
 		"test:metric" +
@@ -88,8 +89,9 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		";owner=team-X" +
 		";testlabel=test:value"
 
-	actual = pathsFromMetric(metric, FormatCarbonTags, "prefix.", nil, nil)
+	actual, err = pathsFromMetric(metric, FormatCarbonTags, "prefix.", nil, nil)
 	require.Equal(t, expected, actual[0])
+	require.Empty(t, err)
 
 	expected = "prefix." +
 		"test:metric{" +
@@ -97,8 +99,9 @@ func TestDefaultPathsFromMetric(t *testing.T) {
 		",owner=\"team-X\"" +
 		",testlabel=\"test:value\"" +
 		"}"
-	actual = pathsFromMetric(metric, FormatCarbonOpenMetrics, "prefix.", nil, nil)
+	actual, err = pathsFromMetric(metric, FormatCarbonOpenMetrics, "prefix.", nil, nil)
 	require.Equal(t, expected, actual[0])
+	require.Empty(t, err)
 }
 
 func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
@@ -114,15 +117,17 @@ func TestUnmatchedMetricPathsFromMetric(t *testing.T) {
 		".owner.team-K"+
 		".testlabel.test:value"+
 		".testlabel2.test:value2")
-	actual := pathsFromMetric(unmatchedMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual, err := pathsFromMetric(unmatchedMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Equal(t, expected, actual)
+	require.Empty(t, err)
 }
 
 func TestTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_3.team-Y.data.foo")
-	actual := pathsFromMetric(metricY, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual, err := pathsFromMetric(metricY, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Equal(t, expected, actual)
+	require.Empty(t, err)
 }
 
 func TestTemplatedPathsFromMetricWithDefault(t *testing.T) {
@@ -133,8 +138,9 @@ func TestTemplatedPathsFromMetricWithDefault(t *testing.T) {
 		".many_chars.abc!ABC:012-3!45%C3%B667~89%2E%2F\\(\\)\\{\\}\\,%3D%2E\\\"\\\\"+
 		".owner.team-X"+
 		".testlabel.test:value")
-	actual := pathsFromMetric(metric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual, err := pathsFromMetric(metric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Equal(t, expected, actual)
+	require.Empty(t, err)
 }
 
 func TestMultiTemplatedPathsFromMetric(t *testing.T) {
@@ -147,8 +153,9 @@ func TestMultiTemplatedPathsFromMetric(t *testing.T) {
 	expected := make([]string, 0)
 	expected = append(expected, "tmpl_1.data%2Efoo.team-X")
 	expected = append(expected, "tmpl_2.team-X.data.foo")
-	actual := pathsFromMetric(multiMatchMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual, err := pathsFromMetric(multiMatchMetric, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Equal(t, expected, actual)
+	require.Empty(t, err)
 }
 
 func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
@@ -159,8 +166,9 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 		"testlabel2":          "test:value2",
 	}
 	t.Log(testConfig.Write.Rules[2])
-	actual := pathsFromMetric(skipedMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	actual, err := pathsFromMetric(skipedMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Empty(t, actual)
+	require.Empty(t, err)
 }
 
 func TestMetricLabelsFromPath(t *testing.T) {
@@ -172,4 +180,21 @@ func TestMetricLabelsFromPath(t *testing.T) {
 	}
 	actualLabels, _ := metricLabelsFromPath(path, prefix)
 	require.Equal(t, expectedLabels, actualLabels)
+}
+
+func TestReplaceNilLabelTemplatedPathsFromMetric(t *testing.T) {
+	testConfigNilLabelStr := `
+write:
+  rules:
+  - match_re:
+      testlabel: test:value
+    template: 'test.{{ replace .labels.doesnotexist " " "_" }}'
+    continue: false`
+
+	testConfigNilLabel := loadTestConfig(testConfigNilLabelStr)
+
+	t.Log(testConfigNilLabel.Write.Rules[0])
+	actual, err := pathsFromMetric(metric, FormatCarbon, "", testConfigNilLabel.Write.Rules, testConfigNilLabel.Write.TemplateData)
+	require.Empty(t, actual)
+	require.Error(t, err)
 }
