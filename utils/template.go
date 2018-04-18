@@ -14,14 +14,14 @@
 package utils
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"text/template"
 )
 
 func replace(input interface{}, from string, to string) (string, error) {
 	if input == nil {
-		return "", fmt.Errorf("input does not exist, cannot replace")
+		return "", errors.New("input does not exist, cannot replace")
 	}
 	return strings.Replace(input.(string), from, to, -1), nil
 }

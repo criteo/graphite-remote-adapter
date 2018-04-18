@@ -90,7 +90,10 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 
 	var buf bytes.Buffer
 	for _, s := range samples {
-		paths := pathsFromMetric(s.Metric, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
+		paths, err := pathsFromMetric(s.Metric, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
+		if err != nil {
+			level.Warn(c.logger).Log("sample", s, "err", err)
+		}
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
 				fmt.Fprint(&buf, str)

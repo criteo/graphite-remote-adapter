@@ -74,14 +74,15 @@ func match(m model.Metric, match config.LabelSet, matchRE config.LabelSetRE) boo
 	return true
 }
 
-func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*config.Rule, templateData map[string]interface{}) []string {
+func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*config.Rule, templateData map[string]interface{}) ([]string, error) {
+	var err error
 	if pathsCacheEnabled {
 		cachedPaths, cached := pathsCache.Get(m.Fingerprint().String())
 		if cached {
-			return cachedPaths.([]string)
+			return cachedPaths.([]string), nil
 		}
 	}
-	paths, stop := templatedPaths(m, rules, templateData)
+	paths, stop, err := templatedPaths(m, rules, templateData)
 	// if it doesn't match any rule, use default path
 	if !stop {
 		paths = append(paths, defaultPath(m, format, prefix))
@@ -89,12 +90,13 @@ func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*conf
 	if pathsCacheEnabled {
 		pathsCache.Set(m.Fingerprint().String(), paths, cache.DefaultExpiration)
 	}
-	return paths
+	return paths, err
 }
 
-func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[string]interface{}) ([]string, bool) {
+func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[string]interface{}) ([]string, bool, error) {
 	var paths []string
 	var stop = false
+	var err error
 	for _, rule := range rules {
 		match := match(m, rule.Match, rule.MatchRE)
 		if !match {
@@ -102,24 +104,24 @@ func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[strin
 		}
 		// We have a rule to silence this metric
 		if rule.Continue == false && (rule.Tmpl == config.Template{}) {
-			return nil, true
+			return nil, true, nil
 		}
 
 		context := loadContext(templateData, m)
 		var path bytes.Buffer
-		err := rule.Tmpl.Execute(&path, context)
+		err = rule.Tmpl.Execute(&path, context)
 		if err != nil {
-			fmt.Println(err)
-		} else {
-			paths = append(paths, path.String())
+			// We had an error processing the template so we break the loop
+			break
 		}
+		paths = append(paths, path.String())
 
 		stop = !rule.Continue
 		if rule.Continue == false {
 			break
 		}
 	}
-	return paths, stop
+	return paths, stop, err
 }
 
 func defaultPath(m model.Metric, format Format, prefix string) string {
