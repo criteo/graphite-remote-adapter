@@ -181,3 +181,20 @@ func TestMetricLabelsFromPath(t *testing.T) {
 	actualLabels, _ := metricLabelsFromPath(path, prefix)
 	require.Equal(t, expectedLabels, actualLabels)
 }
+
+func TestReplaceNilLabelTemplatedPathsFromMetric(t *testing.T) {
+	testConfigNilLabelStr := `
+write:
+  rules:
+  - match_re:
+      testlabel: test:value
+    template: 'test.{{ replace .labels.doesnotexist " " "_" }}'
+    continue: false`
+
+	testConfigNilLabel := loadTestConfig(testConfigNilLabelStr)
+
+	t.Log(testConfigNilLabel.Write.Rules[0])
+	actual, err := pathsFromMetric(metric, FormatCarbon, "", testConfigNilLabel.Write.Rules, testConfigNilLabel.Write.TemplateData)
+	require.Empty(t, actual)
+	require.Error(t, err)
+}
