@@ -15,6 +15,7 @@ package utils
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"text/template"
 )
@@ -34,9 +35,22 @@ func escape(input interface{}) string {
 	return Escape(input.(string))
 }
 
+// isSet indicate is a field is defined in the template data
+func isSet(v interface{}, name string) bool {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Struct {
+		return false
+	}
+	return rv.FieldByName(name).IsValid()
+}
+
 // TmplFuncMap expose custom go template functions
 var TmplFuncMap = template.FuncMap{
 	"replace": replace,
 	"split":   split,
 	"escape":  escape,
+	"isSet": isSet,
 }
