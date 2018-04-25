@@ -52,5 +52,5 @@ var TmplFuncMap = template.FuncMap{
 	"replace": replace,
 	"split":   split,
 	"escape":  escape,
-	"isSet": isSet,
+	"isSet":   isSet,
 }
