@@ -1,0 +1,17 @@
+{{define "content"}}
+<h1>Graphite Remote Adapter</h1>
+
+graphite-remote-adapter {{ .VersionInfo }}<br/>
+Build context {{ .VersionBuildContext }}<br/>
+
+Flags:<br/><pre class="alert alert-light">{{ .Cfg }}</pre>
+
+Writers:<br/><dl>{{ range $name, $w :=  .Writers }}
+  <dt>{{ $name }}</dt><dd><pre class="alert alert-light">{{ $w }}</pre></dd>
+{{ end }}</dl>
+
+Readers:<br/><dl>{{ range $name, $r :=  .Readers }}
+  <dt>{{ $name }}</dt><dd><pre class="alert alert-light">{{ $r }}</pre></dd>
+{{ end }}</dl>
+
+{{end}}

@@ -15,13 +15,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -41,6 +44,10 @@ import (
 	"github.com/criteo/graphite-remote-adapter/client"
 	"github.com/criteo/graphite-remote-adapter/client/graphite"
 	"github.com/criteo/graphite-remote-adapter/config"
+	"github.com/criteo/graphite-remote-adapter/ui"
+	"github.com/criteo/graphite-remote-adapter/utils"
+
+	assetfs "github.com/elazarl/go-bindata-assetfs"
 )
 
 // Constants for instrumentation.
@@ -240,11 +247,68 @@ func (s *Server) Serve(logger log.Logger) error {
 		s.Read(logger, w, r)
 	}))
 
+	http.HandleFunc("/-/healthy", ihf("healthy", func(w http.ResponseWriter, r *http.Request) {
+		s.Healthy(w, r)
+	}))
+
+	staticFs := http.FileServer(
+		&assetfs.AssetFS{Asset: ui.Asset, AssetDir: ui.AssetDir, AssetInfo: ui.AssetInfo, Prefix: ""})
+	http.Handle("/static/", prometheus.InstrumentHandler("static", staticFs))
+
 	http.HandleFunc("/", ihf("status", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.Error(w, "Page not found... Sorry :(", http.StatusNotFound)
+			return
+		}
 		s.Status(w, r)
 	}))
 
 	return http.ListenAndServe(s.cfg.Web.ListenAddress, nil)
+}
+
+func (s *Server) getTemplate(name string) (string, error) {
+	baseTmpl, err := ui.Asset("templates/_base.html")
+	if err != nil {
+		return "", fmt.Errorf("error reading base template: %s", err)
+	}
+	pageTmpl, err := ui.Asset(filepath.Join("templates", name))
+	if err != nil {
+		return "", fmt.Errorf("error reading page template %s: %s", name, err)
+	}
+	return string(baseTmpl) + string(pageTmpl), nil
+}
+
+func (s *Server) executeTemplate(w http.ResponseWriter, name string, data interface{}) ([]byte, error) {
+	text, err := s.getTemplate(name)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpl := template.New(name).Funcs(template.FuncMap(utils.TmplFuncMap))
+	tmpl, err = tmpl.Parse(text)
+	if err != nil {
+		return nil, err
+	}
+
+	var buffer bytes.Buffer
+	err = tmpl.Execute(&buffer, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// Healthy generate an html healthy page.
+func (s *Server) Healthy(w http.ResponseWriter, r *http.Request) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	s.healthy(w, r)
+}
+
+func (s *Server) healthy(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "OK")
 }
 
 // Status generate an html status page.
@@ -256,51 +320,33 @@ func (s *Server) Status(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Graphite Remote Adapter</title>
-
-    <!-- Bootstrap -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
-
-
-  </head>
-  <body>
-    <div class="container" role="main">
-    <h1>Graphite Remote Adapter</h1>
-`)
-
-	fmt.Fprintf(w, "graphite-remote-adapter %s<br/>", version.Info())
-	fmt.Fprintf(w, "Build context %s<br/>", version.BuildContext())
-
-	fmt.Fprintf(w, "Flags:<br/><pre>%s</pre>", html.EscapeString(spew.Sdump(s.cfg)))
-
-	fmt.Fprintf(w, "Writers:<br/><dl>")
-	for _, v := range s.writers {
-		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
-			v.Name(), html.EscapeString(spew.Sdump(v)))
+	status := struct {
+		VersionInfo         string
+		VersionBuildContext string
+		Cfg                 string
+		Readers             map[string]string
+		Writers             map[string]string
+	}{
+		VersionInfo:         version.Info(),
+		VersionBuildContext: version.BuildContext(),
+		Cfg:                 html.EscapeString(spew.Sdump(s.cfg)),
+		Readers:             map[string]string{},
+		Writers:             map[string]string{},
 	}
-	fmt.Fprintf(w, "</dl>")
-	fmt.Fprintf(w, "Readers:<br/><dl>")
-	for _, v := range s.readers {
-		spew.Fprintf(w, "<dt>%s</dt><dd><pre>%s</pre></dd>",
-			v.Name(), html.EscapeString(spew.Sdump(v)))
+	for _, r := range s.readers {
+		status.Readers[r.Name()] = html.EscapeString(spew.Sdump(r))
 	}
-	fmt.Fprintf(w, "</dl>")
+	for _, w := range s.writers {
+		status.Writers[w.Name()] = html.EscapeString(spew.Sdump(w))
+	}
 
-	fmt.Fprintf(w, `
-    </div>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-  </body>
-</html>
-`)
+	bytes, err := s.executeTemplate(w, "status.html", status)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bytes)
 }
 
 func (s *Server) Write(logger log.Logger, w http.ResponseWriter, r *http.Request) {

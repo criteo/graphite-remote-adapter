@@ -1,0 +1,14 @@
+{
+  "name": "graphite_remote_adapter",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^4.1.1",
+    "bootswatch": "^4.1.1",
+    "font-awesome": "^4.7.0",
+    "gulp": "^3.9.1",
+    "gulp-rename": "^1.2.2"
+  }
+}

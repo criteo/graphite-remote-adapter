@@ -21,3 +21,6 @@ benchmark.txt
 /.tarballs
 
 !/.travis.yml
+
+# JS stuff
+node_modules/

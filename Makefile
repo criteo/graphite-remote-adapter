@@ -43,6 +43,8 @@ vet:
 	@echo ">> vetting code"
 	@$(GO) vet $(pkgs)
 
+build-all: assets build
+
 build: promu
 	@echo ">> building binaries"
 	@$(PROMU) build --prefix $(PREFIX)
@@ -58,11 +60,16 @@ docker:
 assets:
 	@echo ">> writing assets"
 	-@$(GO) get -u github.com/jteeuwen/go-bindata/...
+	@go-bindata $(bindata_flags) -pkg ui -o ui/bindata.go -prefix 'ui/' ui/templates/... ui/static/...
+	@$(GO) fmt ./ui
 
 promu:
 	@GOOS=$(shell uname -s | tr A-Z a-z) \
 	GOARCH=$(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m))) \
 	$(GO) get -u github.com/prometheus/promu
+
+clean:
+	rm ui/bindata.go
 
 proto:
 
