@@ -181,6 +181,17 @@ func TestMetricLabelsFromPath(t *testing.T) {
 	actualLabels, _ := metricLabelsFromPath(path, prefix, false)
 	require.Equal(t, expectedLabels, actualLabels)
 }
+func TestMetricLabelsFromSpecialPath(t *testing.T) {
+	path := "prometheus-prefix.test.owner.team-Y.interface.Hu0%2F0%2F1%2F3%2E99"
+	prefix := "prometheus-prefix"
+	expectedLabels := []*prompb.Label{
+		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
+		&prompb.Label{Name: "owner", Value: "team-Y"},
+		&prompb.Label{Name: "interface", Value: "Hu0/0/1/3.99"},
+	}
+	actualLabels, _ := metricLabelsFromPath(path, prefix, true)
+	require.Equal(t, expectedLabels, actualLabels)
+}
 
 func TestReplaceNilLabelTemplatedPathsFromMetric(t *testing.T) {
 	testConfigNilLabelStr := `
