@@ -110,7 +110,7 @@ func TestTargetToTimeseries(t *testing.T) {
 
 	actualTs, err := testClient.targetToTimeseries(nil, "prometheus-prefix.test.owner.team-X", "0", "300", testClient.cfg.DefaultPrefix)
 	if !reflect.DeepEqual(err, nil) {
-		t.Errorf("Expected err: %s, got %s", nil, err)
+		t.Errorf("Expected no err, got %s", err)
 	}
 	if !reflect.DeepEqual(expectedTs, actualTs[0]) {
 		t.Errorf("Expected %s, got %s", expectedTs, actualTs[0])
