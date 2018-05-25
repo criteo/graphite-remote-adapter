@@ -202,7 +202,7 @@ func metricLabelsFromTags(tags Tags, prefix string) ([]*prompb.Label, error) {
 	return labels, nil
 }
 
-func metricLabelsFromPath(path string, prefix string, unescape bool) ([]*prompb.Label, error) {
+func metricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {
 	// It uses the "default" write format to read back (See defaultPath function)
 	// <prefix.><__name__.>[<labelName>.<labelValue>. for each label in alphabetic order]
 	var labels []*prompb.Label
