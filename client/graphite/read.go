@@ -32,6 +32,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+var unescape bool
+
 func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query, graphitePrefix string) ([]string, error) {
 	// Parse metric name from query
 	var name string
@@ -115,7 +117,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePr
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels, err := metricLabelsFromPath(target, graphitePrefix)
+		labels, err := metricLabelsFromPath(target, graphitePrefix, unescape)
 		if err != nil {
 			level.Warn(c.logger).Log(
 				"path", target, "prefix", graphitePrefix, "err", err)
@@ -186,7 +188,7 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 		if c.cfg.EnableTags {
 			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, graphitePrefix)
 		} else {
-			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, graphitePrefix)
+			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, graphitePrefix, unescape)
 		}
 
 		if err != nil {
@@ -351,6 +353,10 @@ func (c *Client) Read(req *prompb.ReadRequest, r *http.Request) (*prompb.ReadRes
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.readTimeout)
 	defer cancel()
+
+	params := r.URL.Query()
+	// unescape will be true if there is a param named 'unescape' in the URL request
+	_, unescape = params["unescape"]
 
 	graphitePrefix, err := c.getGraphitePrefix(r)
 	if err != nil {

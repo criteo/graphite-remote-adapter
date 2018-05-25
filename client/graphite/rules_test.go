@@ -178,7 +178,7 @@ func TestMetricLabelsFromPath(t *testing.T) {
 		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
 		&prompb.Label{Name: "owner", Value: "team-X"},
 	}
-	actualLabels, _ := metricLabelsFromPath(path, prefix)
+	actualLabels, _ := metricLabelsFromPath(path, prefix, false)
 	require.Equal(t, expectedLabels, actualLabels)
 }
 
