@@ -215,7 +215,7 @@ func metricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {
 		return nil, err
 	}
 	for i := 1; i < len(nodes); i += 2 {
-		labels = append(labels, &prompb.Label{Name: nodes[i], Value: nodes[i+1]})
+		labels = append(labels, &prompb.Label{Name: utils.Unescape(nodes[i]), Value: utils.Unescape(nodes[i+1])})
 	}
 	return labels, nil
 }
