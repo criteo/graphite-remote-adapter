@@ -5,8 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [0.0.16] - 2018-05-30
 ### Added
 - Metrics namespace
+- Unescape metrics when reading them back
+- Better error managment
+- Provide a `isSet` template function
 
 ## [0.0.15] - 2018-02-28
 ### Added
@@ -94,7 +99,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...HEAD
+[0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...v0.0.16
 [0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...v0.0.13
