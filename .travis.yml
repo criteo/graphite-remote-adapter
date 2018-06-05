@@ -14,6 +14,10 @@ script:
 - make style test
 
 before_deploy:
+# prepare front-end
+- make clean assets
+- git diff --exit-code
+# prepare back-end
 - make promu
 - promu crossbuild
 - promu crossbuild tarballs
