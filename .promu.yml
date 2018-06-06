@@ -3,7 +3,9 @@ repository:
 build:
     binaries:
         - name: graphite-remote-adapter
-          path: .
+          path: ./cmd/graphite-remote-adapter
+        - name: ratool
+          path: ./cmd/ratool
     flags: -a -tags netgo
     ldflags: |
         -X {{repoPath}}/vendor/github.com/prometheus/common/version.Version={{.Version}}
@@ -41,4 +43,3 @@ crossbuild:
         - netbsd/arm
         - linux/ppc64
         - linux/ppc64le
-

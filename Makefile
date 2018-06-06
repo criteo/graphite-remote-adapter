@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO    := GO15VENDOREXPERIMENT=1 go
+GO    := go
 PROMU := $(GOPATH)/bin/promu
-pkgs   = $(shell $(GO) list ./... | grep -v -E '/vendor/|/ui')
+pkgs   = ./...
 
 PREFIX                  ?= $(shell pwd)
 BIN_DIR                 ?= $(shell pwd)
@@ -47,7 +47,7 @@ build-all: assets build
 
 build: promu
 	@echo ">> building binaries"
-	@$(PROMU) build --prefix $(PREFIX)
+	@$(PROMU) build --prefix $(PREFIX) $(BINARIES)
 
 tarball: promu
 	@echo ">> building release tarball"
