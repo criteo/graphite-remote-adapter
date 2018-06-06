@@ -26,6 +26,8 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+const udpMaxBytes = 1024
+
 func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 	t := float64(s.Timestamp.UnixNano()) / 1e9
 	v := float64(s.Value)
@@ -88,7 +90,8 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 	level.Debug(c.logger).Log(
 		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 
-	var buf bytes.Buffer
+	currentBuf := bytes.NewBufferString("")
+	bytesBuffers := []*bytes.Buffer{currentBuf}
 	for _, s := range samples {
 		paths, err := pathsFromMetric(s.Metric, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		if err != nil {
@@ -96,7 +99,11 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 		}
 		for _, k := range paths {
 			if str := c.prepareDataPoint(k, s); str != "" {
-				fmt.Fprint(&buf, str)
+				if c.cfg.Write.CarbonTransport == "udp" && (currentBuf.Len()+len(str)) > udpMaxBytes {
+					currentBuf = bytes.NewBufferString("")
+					bytesBuffers = append(bytesBuffers, currentBuf)
+				}
+				fmt.Fprint(currentBuf, str)
 				level.Debug(c.logger).Log("line", str, "msg", "Sending")
 			}
 		}
@@ -106,15 +113,17 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 	c.carbonConLock.Lock()
 	defer c.carbonConLock.Unlock()
 
-	conn, err := c.connectToCarbon()
-	if err != nil {
-		return err
-	}
+	for _, buf := range bytesBuffers {
+		conn, err := c.connectToCarbon()
+		if err != nil {
+			return err
+		}
 
-	_, err = conn.Write(buf.Bytes())
-	if err != nil {
-		c.disconnectFromCarbon()
-		return err
+		_, err = conn.Write(buf.Bytes())
+		if err != nil {
+			c.disconnectFromCarbon()
+			return err
+		}
 	}
 
 	return nil
