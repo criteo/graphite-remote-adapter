@@ -15,12 +15,14 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"text/template"
 )
 
-func replace(input interface{}, from string, to string) (string, error) {
+func replace(input interface{}, from, to string) (string, error) {
 	if input == nil {
 		return "", errors.New("input does not exist, cannot replace")
 	}
@@ -47,10 +49,34 @@ func isSet(v interface{}, name string) bool {
 	return rv.FieldByName(name).IsValid()
 }
 
+func replaceRegex(input interface{}, matcher, replaceWith string) (string, error) {
+	rx, err := rexGet(matcher)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse incoming regex string: %v", err)
+	}
+	return rx.ReplaceAllString(input.(string), replaceWith), nil
+}
+
 // TmplFuncMap expose custom go template functions
 var TmplFuncMap = template.FuncMap{
-	"replace": replace,
-	"split":   split,
-	"escape":  escape,
-	"isSet":   isSet,
+	"replace":      replace,
+	"split":        split,
+	"escape":       escape,
+	"isSet":        isSet,
+	"replaceRegex": replaceRegex,
+}
+
+// singleton to hold the expensive Compile operation results
+var matchersMap = make(map[string]*regexp.Regexp)
+
+func rexGet(m string) (*regexp.Regexp, error) {
+	if r, ok := matchersMap[m]; ok {
+		return r, nil
+	}
+	rx, err := regexp.Compile(m)
+	if err != nil {
+		return nil, err
+	}
+	matchersMap[m] = rx
+	return rx, nil
 }
