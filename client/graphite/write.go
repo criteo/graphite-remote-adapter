@@ -37,7 +37,7 @@ func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
 		c.ignoredSamples.Inc()
 		return ""
 	}
-	return fmt.Sprintf("%s %f %f\n", path, v, t)
+	return fmt.Sprintf("%s %f %.0f\n", path, v, t)
 }
 
 func (c *Client) connectToCarbon() (net.Conn, error) {
