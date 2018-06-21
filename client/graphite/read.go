@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
 	plabels "github.com/prometheus/prometheus/pkg/labels"
@@ -115,7 +116,7 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePr
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		prompbLabels, err := metricLabelsFromPath(target, graphitePrefix)
+		prompbLabels, err := paths.MetricLabelsFromPath(target, graphitePrefix)
 		if err != nil {
 			level.Warn(c.logger).Log(
 				"path", target, "prefix", graphitePrefix, "err", err)
@@ -184,9 +185,9 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 		ts := &prompb.TimeSeries{}
 
 		if c.cfg.EnableTags {
-			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, graphitePrefix)
+			ts.Labels, err = paths.MetricLabelsFromTags(renderResponse.Tags, graphitePrefix)
 		} else {
-			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, graphitePrefix)
+			ts.Labels, err = paths.MetricLabelsFromPath(renderResponse.Target, graphitePrefix)
 		}
 
 		if err != nil {

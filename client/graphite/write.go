@@ -17,28 +17,16 @@ package graphite
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"time"
 
+	gpaths "github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
 )
 
 const udpMaxBytes = 1024
-
-func (c *Client) prepareDataPoint(path string, s *model.Sample) string {
-	t := float64(s.Timestamp.UnixNano()) / 1e9
-	v := float64(s.Value)
-	if math.IsNaN(v) || math.IsInf(v, 0) {
-		level.Debug(c.logger).Log(
-			"value", v, "sample", s, "msg", "cannot send a value, skipping sample")
-		c.ignoredSamples.Inc()
-		return ""
-	}
-	return fmt.Sprintf("%s %f %.0f\n", path, v, t)
-}
 
 func (c *Client) connectToCarbon() (net.Conn, error) {
 	if c.carbonCon != nil {
@@ -93,19 +81,19 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 	currentBuf := bytes.NewBufferString("")
 	bytesBuffers := []*bytes.Buffer{currentBuf}
 	for _, s := range samples {
-		paths, err := pathsFromMetric(s.Metric, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
+		datapoints, err := gpaths.ToDatapoints(s, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		if err != nil {
 			level.Warn(c.logger).Log("sample", s, "err", err)
+			c.ignoredSamples.Inc()
+			continue
 		}
-		for _, k := range paths {
-			if str := c.prepareDataPoint(k, s); str != "" {
-				if c.cfg.Write.CarbonTransport == "udp" && (currentBuf.Len()+len(str)) > udpMaxBytes {
-					currentBuf = bytes.NewBufferString("")
-					bytesBuffers = append(bytesBuffers, currentBuf)
-				}
-				fmt.Fprint(currentBuf, str)
-				level.Debug(c.logger).Log("line", str, "msg", "Sending")
+		for _, str := range datapoints {
+			if c.cfg.Write.CarbonTransport == "udp" && (currentBuf.Len()+len(str)) > udpMaxBytes {
+				currentBuf = bytes.NewBufferString("")
+				bytesBuffers = append(bytesBuffers, currentBuf)
 			}
+			fmt.Fprint(currentBuf, str)
+			level.Debug(c.logger).Log("line", str, "msg", "Sending")
 		}
 	}
 
