@@ -1,9 +1,11 @@
 package main
 
 import (
-	"net/url"
 	"os"
 
+	"github.com/go-kit/kit/log"
+	"github.com/prometheus/common/promlog"
+	promlogflag "github.com/prometheus/common/promlog/flag"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -12,37 +14,20 @@ const (
 )
 
 var (
-	remoteAdapterURL *url.URL
+	logLevel promlog.AllowedLevel
+	logger   log.Logger
 )
 
-func requireRemoteAdapterURL(pc *kingpin.ParseContext) error {
-	// Return without error if any help flag is set.
-	for _, elem := range pc.Elements {
-		f, ok := elem.Clause.(*kingpin.FlagClause)
-		if !ok {
-			continue
-		}
-		name := f.Model().Name
-		if name == "help" || name == "help-long" || name == "help-man" {
-			return nil
-		}
-	}
-	if remoteAdapterURL == nil {
-		kingpin.Fatalf("required flag --remote-adapter.url not provided")
-	}
-	return nil
-}
-
 func main() {
-	var (
-		app = kingpin.New("ratool", helpRoot).DefaultEnvars()
-	)
-	app.Flag("remote-adapter.url", "Set a default remote-adapter url for each request.").URLVar(&remoteAdapterURL)
-	app.GetFlag("help").Short('h')
-	configureMockWriteCmd(app)
+	app := kingpin.New("ratool", helpRoot).DefaultEnvars()
 
-	_, err := app.Parse(os.Args[1:])
-	if err != nil {
-		kingpin.Fatalf("%v\n", err)
-	}
+	// Add logLevel flag
+	app.Flag(promlogflag.LevelFlagName, promlogflag.LevelFlagHelp).
+		Default("info").SetValue(&logLevel)
+
+	configureMockWriteCmd(app)
+	configureUnittestCmd(app)
+
+	app.GetFlag("help").Short('h')
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 }
