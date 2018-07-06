@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2018-07-06
+### Fixed
+- make assets make target deterministic
+
 ## [0.1.0] - 2018-07-06
 ### Fixed
 - limit udp datagrams size to 1024
@@ -113,7 +117,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...v0.1.0
 [0.0.16]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...v0.0.16
 [0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...v0.0.15
