@@ -128,3 +128,52 @@ remote_write:
 remote_read:
   - url: "http://localhost:9201/read?graphite.default-prefix=customprefix."
 ```
+
+## Testing
+
+You can test the graphite-remote-adapter behavior or its configuration using the second binary named **ratool** for remote-adapter tool.
+Here are two examples:
+
+#### Integration test (manual end-to-end)
+
+The remote-adapter tool will read an input file in Prometheus exposition text format;
+translate it in WriteRequest using compressed protobuf format; and send it to
+the graphite-remote-adapter url on its /write endpoint.
+No need to run a Prometheus instance to test it anymore:
+
+file -> ratool -> graphite-remote-adapter -> nc
+```
+$ make build
+$ cat cmd/ratool/input.metrics.example
+  # Use the Prometheus exposition text format
+  toto{foo="bar", cluster="test"} 42
+  toto{foo="bar", cluster="canary"} 34
+  # You can even force a given timestamp
+  toto{foo="bazz", cluster="canary"} 18 1528819131000
+$ ./graphite-remote-adapter --graphite.write.carbon-address ':8888' --log.level debug &
+$ nc -l 0.0.0.0 8888 -w 1 > out.txt
+$ ./ratool mock-write --metrics.file cmd/ratool/input.metrics.example --remote-adapter.url 'http://localhost:9201'
+$ cat out.txt
+  toto.cluster.test.foo.bar 42.000000 1570803131
+  toto.cluster.canary.foo.bar 34.000000 1570803131
+  toto.cluster.canary.foo.bazz 18.000000 1528819131
+```
+
+#### Unittests (automated config unittests)
+
+If you want to unittest your configuration without requiring any network.
+
+file -> ratool -> file
+```
+$ make build
+$ cat cmd/ratool/input.metrics.example
+  # Use the Prometheus exposition text format
+  toto{foo="bar", cluster="test"} 42
+  toto{foo="bar", cluster="canary"} 34
+  # You can even force a given timestamp
+  toto{foo="bazz", cluster="canary"} 18 1528819131000
+$ ./ratool unittest --metrics.file cmd/ratool/input.metrics.example  --config.file config_file.yml
+  toto.my.templated.path.test.foo.bar.lulu 42.000000 1570802650
+  toto.canary.other.template.bar 34.000000 1570802650
+  toto.canary.other.template.bazz 18.000000 1528819131
+```

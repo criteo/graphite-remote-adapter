@@ -27,6 +27,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 
 	graphiteCfg "github.com/criteo/graphite-remote-adapter/client/graphite/config"
+	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/criteo/graphite-remote-adapter/config"
 )
 
@@ -44,7 +45,7 @@ type Client struct {
 	readTimeout    time.Duration
 	readDelay      time.Duration
 	ignoredSamples prometheus.Counter
-	format         Format
+	format         paths.Format
 
 	carbonCon               net.Conn
 	carbonLastReconnectTime time.Time
@@ -59,7 +60,7 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 		return nil
 	}
 	if cfg.Graphite.Write.EnablePathsCache {
-		initPathsCache(cfg.Graphite.Write.PathsCacheTTL,
+		paths.InitPathsCache(cfg.Graphite.Write.PathsCacheTTL,
 			cfg.Graphite.Write.PathsCachePurgeInterval)
 		level.Debug(logger).Log(
 			"PathsCacheTTL", cfg.Graphite.Write.PathsCacheTTL,
@@ -68,12 +69,12 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	}
 
 	// Which format are we using to write points?
-	format := FormatCarbon
+	format := paths.FormatCarbon
 	if cfg.Graphite.EnableTags {
 		if cfg.Graphite.UseOpenMetricsFormat {
-			format = FormatCarbonOpenMetrics
+			format = paths.FormatCarbonOpenMetrics
 		} else {
-			format = FormatCarbonTags
+			format = paths.FormatCarbonTags
 		}
 	}
 

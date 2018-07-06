@@ -22,10 +22,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
+	plabels "github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/prompb"
-	pmetric "github.com/prometheus/prometheus/storage/metric"
 
 	"strings"
 
@@ -115,32 +116,32 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePr
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels, err := metricLabelsFromPath(target, graphitePrefix)
+		prompbLabels, err := paths.MetricLabelsFromPath(target, graphitePrefix)
 		if err != nil {
 			level.Warn(c.logger).Log(
 				"path", target, "prefix", graphitePrefix, "err", err)
 			continue
 		}
-		labelSet := make(model.LabelSet, len(labels))
+		labelMap := make(map[string]string, len(prompbLabels))
 
-		for _, label := range labels {
-			labelSet[model.LabelName(label.Name)] = model.LabelValue(label.Value)
+		for _, label := range prompbLabels {
+			labelMap[label.Name] = label.Value
 		}
 
 		level.Debug(c.logger).Log(
 			"target", target, "prefix", graphitePrefix,
-			"labels", labelSet, "msg", "Filtering target")
+			"labels", labelMap, "msg", "Filtering target")
 
 		// See if all matchers are satisfied.
 		match := true
 		for _, m := range query.Matchers {
-			matcher, err := pmetric.NewLabelMatcher(
-				pmetric.MatchType(m.Type), model.LabelName(m.Name), model.LabelValue(m.Value))
+			matcher, err := plabels.NewMatcher(
+				plabels.MatchType(m.Type), m.Name, m.Value)
 			if err != nil {
 				return nil, err
 			}
 
-			if !matcher.Match(labelSet[model.LabelName(m.Name)]) {
+			if !matcher.Matches(labelMap[m.Name]) {
 				match = false
 				break
 			}
@@ -184,9 +185,9 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 		ts := &prompb.TimeSeries{}
 
 		if c.cfg.EnableTags {
-			ts.Labels, err = metricLabelsFromTags(renderResponse.Tags, graphitePrefix)
+			ts.Labels, err = paths.MetricLabelsFromTags(renderResponse.Tags, graphitePrefix)
 		} else {
-			ts.Labels, err = metricLabelsFromPath(renderResponse.Target, graphitePrefix)
+			ts.Labels, err = paths.MetricLabelsFromPath(renderResponse.Target, graphitePrefix)
 		}
 
 		if err != nil {

@@ -1,0 +1,5 @@
+# Use the Prometheus exposition text format
+toto{foo="bar", cluster="test"} 42
+toto{foo="bar", cluster="canary"} 34
+# You can even force a given timestamp
+toto{foo="bazz", cluster="canary"} 18 1528819131000
