@@ -12,12 +12,11 @@ go_import_path: github.com/criteo/graphite-remote-adapter
 
 script:
 - make style test
-
-before_deploy:
-# prepare front-end
+# verify front-end is up to date.
 - make clean assets
 - git diff --exit-code
-# prepare back-end
+
+before_deploy:
 - make promu
 - promu crossbuild
 - promu crossbuild tarballs
