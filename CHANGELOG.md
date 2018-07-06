@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2018-07-06
+### Fixed
+- verify front-end is up to date on every travis build
+- Update missing changes in ui/bindata.go
+
 ## [0.1.1] - 2018-07-06
 ### Fixed
 - make assets make target deterministic
@@ -117,7 +122,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...v0.1.0
 [0.0.16]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...v0.0.16
