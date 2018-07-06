@@ -54,7 +54,7 @@ func FetchURL(ctx context.Context, logger log.Logger, u *url.URL) ([]byte, error
 	defer hresp.Body.Close()
 
 	body, err := ioutil.ReadAll(hresp.Body)
-	level.Debug(logger).Log("len(body)", len(body), "err", err, "msg", "Fetching URL")
+	level.Debug(logger).Log("len(body)", len(body), "err", err, "msg", "reading response")
 	if err != nil {
 		return nil, err
 	}

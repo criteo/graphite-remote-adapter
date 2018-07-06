@@ -357,7 +357,7 @@ func (s *Server) Write(logger log.Logger, w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) write(logger log.Logger, w http.ResponseWriter, r *http.Request) {
-	level.Debug(logger).Log("request", r, "msg", "Handling /write request")
+	level.Debug(logger).Log("request", r.URL, "msg", "Handling /write request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		level.Warn(logger).Log("err", err, "msg", "Error reading request body")
@@ -401,7 +401,7 @@ func (s *Server) Read(logger log.Logger, w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) read(logger log.Logger, w http.ResponseWriter, r *http.Request) {
-	level.Debug(logger).Log("request", r, "msg", "Handling /read request")
+	level.Debug(logger).Log("request", r.URL, "msg", "Handling /read request")
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		level.Warn(logger).Log("err", err, "msg", "Error reading request body")

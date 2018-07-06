@@ -25,10 +25,7 @@ func httpCode(handler http.HandlerFunc, method, url string, values url.Values) (
 //  assert.HTTPSuccess(t, myHandler, "POST", "http://www.google.com", nil)
 //
 // Returns whether the assertion was successful (true) or not (false).
-func HTTPSuccess(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, msgAndArgs ...interface{}) bool {
-	if h, ok := t.(tHelper); ok {
-		h.Helper()
-	}
+func HTTPSuccess(t TestingT, handler http.HandlerFunc, method, url string, values url.Values) bool {
 	code, err := httpCode(handler, method, url, values)
 	if err != nil {
 		Fail(t, fmt.Sprintf("Failed to build test request, got error: %s", err))
@@ -48,10 +45,7 @@ func HTTPSuccess(t TestingT, handler http.HandlerFunc, method, url string, value
 //  assert.HTTPRedirect(t, myHandler, "GET", "/a/b/c", url.Values{"a": []string{"b", "c"}}
 //
 // Returns whether the assertion was successful (true) or not (false).
-func HTTPRedirect(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, msgAndArgs ...interface{}) bool {
-	if h, ok := t.(tHelper); ok {
-		h.Helper()
-	}
+func HTTPRedirect(t TestingT, handler http.HandlerFunc, method, url string, values url.Values) bool {
 	code, err := httpCode(handler, method, url, values)
 	if err != nil {
 		Fail(t, fmt.Sprintf("Failed to build test request, got error: %s", err))
@@ -71,10 +65,7 @@ func HTTPRedirect(t TestingT, handler http.HandlerFunc, method, url string, valu
 //  assert.HTTPError(t, myHandler, "POST", "/a/b/c", url.Values{"a": []string{"b", "c"}}
 //
 // Returns whether the assertion was successful (true) or not (false).
-func HTTPError(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, msgAndArgs ...interface{}) bool {
-	if h, ok := t.(tHelper); ok {
-		h.Helper()
-	}
+func HTTPError(t TestingT, handler http.HandlerFunc, method, url string, values url.Values) bool {
 	code, err := httpCode(handler, method, url, values)
 	if err != nil {
 		Fail(t, fmt.Sprintf("Failed to build test request, got error: %s", err))
@@ -107,10 +98,7 @@ func HTTPBody(handler http.HandlerFunc, method, url string, values url.Values) s
 //  assert.HTTPBodyContains(t, myHandler, "www.google.com", nil, "I'm Feeling Lucky")
 //
 // Returns whether the assertion was successful (true) or not (false).
-func HTTPBodyContains(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, str interface{}, msgAndArgs ...interface{}) bool {
-	if h, ok := t.(tHelper); ok {
-		h.Helper()
-	}
+func HTTPBodyContains(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, str interface{}) bool {
 	body := HTTPBody(handler, method, url, values)
 
 	contains := strings.Contains(body, fmt.Sprint(str))
@@ -127,10 +115,7 @@ func HTTPBodyContains(t TestingT, handler http.HandlerFunc, method, url string, 
 //  assert.HTTPBodyNotContains(t, myHandler, "www.google.com", nil, "I'm Feeling Lucky")
 //
 // Returns whether the assertion was successful (true) or not (false).
-func HTTPBodyNotContains(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, str interface{}, msgAndArgs ...interface{}) bool {
-	if h, ok := t.(tHelper); ok {
-		h.Helper()
-	}
+func HTTPBodyNotContains(t TestingT, handler http.HandlerFunc, method, url string, values url.Values, str interface{}) bool {
 	body := HTTPBody(handler, method, url, values)
 
 	contains := strings.Contains(body, fmt.Sprint(str))

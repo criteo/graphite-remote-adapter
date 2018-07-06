@@ -24,8 +24,8 @@ import (
 
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/prompb"
-	pmetric "github.com/prometheus/prometheus/storage/metric"
 
 	"strings"
 
@@ -115,15 +115,15 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePr
 	var results []string
 	for _, target := range targets {
 		// Put labels in a map.
-		labels, err := metricLabelsFromPath(target, graphitePrefix)
+		targetLabels, err := metricLabelsFromPath(target, graphitePrefix)
 		if err != nil {
 			level.Warn(c.logger).Log(
 				"path", target, "prefix", graphitePrefix, "err", err)
 			continue
 		}
-		labelSet := make(model.LabelSet, len(labels))
+		labelSet := make(model.LabelSet, len(targetLabels))
 
-		for _, label := range labels {
+		for _, label := range targetLabels {
 			labelSet[model.LabelName(label.Name)] = model.LabelValue(label.Value)
 		}
 
@@ -134,13 +134,12 @@ func (c *Client) filterTargets(query *prompb.Query, targets []string, graphitePr
 		// See if all matchers are satisfied.
 		match := true
 		for _, m := range query.Matchers {
-			matcher, err := pmetric.NewLabelMatcher(
-				pmetric.MatchType(m.Type), model.LabelName(m.Name), model.LabelValue(m.Value))
+			matcher, err := labels.NewMatcher(labels.MatchType(m.Type), m.Name, m.Value)
 			if err != nil {
 				return nil, err
 			}
 
-			if !matcher.Match(labelSet[model.LabelName(m.Name)]) {
+			if !matcher.Matches(string(labelSet[model.LabelName(m.Name)])) {
 				match = false
 				break
 			}
