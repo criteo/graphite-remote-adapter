@@ -60,7 +60,9 @@ docker:
 assets:
 	@echo ">> writing assets"
 	-@$(GO) get -u github.com/jteeuwen/go-bindata/...
-	@go-bindata $(bindata_flags) -pkg ui -o ui/bindata.go -prefix 'ui/' ui/templates/... ui/static/...
+	# Using "-mode 420" and "-modtime 1" to make assets make target deterministic.
+	# It sets all file permissions and time stamps to 420 and 1
+	@go-bindata $(bindata_flags) -mode 420 -modtime 1 -pkg ui -o ui/bindata.go -prefix 'ui/' ui/templates/... ui/static/...
 	@$(GO) fmt ./ui
 
 promu:
