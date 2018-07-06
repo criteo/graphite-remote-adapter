@@ -92,7 +92,7 @@ func templates_baseHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/_base.html", size: 1441, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "templates/_base.html", size: 1441, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -112,7 +112,7 @@ func templatesStatusHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/status.html", size: 508, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "templates/status.html", size: 508, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -132,7 +132,7 @@ func staticCssBootstrapLumenMinCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/css/bootstrap-lumen.min.css", size: 202326, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/css/bootstrap-lumen.min.css", size: 202326, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -152,7 +152,7 @@ func staticCssFontAwesomeMinCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/css/font-awesome.min.css", size: 31000, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/css/font-awesome.min.css", size: 31000, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -172,7 +172,7 @@ func staticFontsFontawesomeOtf() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/FontAwesome.otf", size: 134808, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/FontAwesome.otf", size: 134808, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -192,7 +192,7 @@ func staticFontsFontawesomeWebfontEot() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.eot", size: 165742, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.eot", size: 165742, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -212,7 +212,7 @@ func staticFontsFontawesomeWebfontSvg() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.svg", size: 444379, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.svg", size: 444379, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -232,7 +232,7 @@ func staticFontsFontawesomeWebfontTtf() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.ttf", size: 165548, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.ttf", size: 165548, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -252,7 +252,7 @@ func staticFontsFontawesomeWebfontWoff() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.woff", size: 98024, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.woff", size: 98024, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -272,7 +272,7 @@ func staticFontsFontawesomeWebfontWoff2() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.woff2", size: 77160, mode: os.FileMode(420), modTime: time.Unix(1528208830, 0)}
+	info := bindataFileInfo{name: "static/fonts/fontawesome-webfont.woff2", size: 77160, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
