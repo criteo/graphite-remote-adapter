@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2018-07-06
+### Fixed
+- limit udp datagrams size to 1024
+
+### Added
+- UI using bootstrap
+- /health
+- replaceRegexp in template functions
+- A second binary `ratool`
+
+### Changed
+- removed sub-second resolution in timestamp
+- updated vendor/
+
 ## [0.0.16] - 2018-05-30
 ### Added
 - Metrics namespace
@@ -99,8 +113,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...HEAD
-[0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...v0.0.16
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...v0.1.0
+[0.0.16]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.15...v0.0.16
 [0.0.15]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.12...v0.0.13
