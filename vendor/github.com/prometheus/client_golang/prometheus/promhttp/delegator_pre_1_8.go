@@ -1,4 +1,4 @@
-// Copyright 2015 The Prometheus Authors
+// Copyright 2017 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,26 +11,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+// +build !go1.8
+
+package promhttp
 
 import (
-	"testing"
+	"io"
+	"net/http"
 )
 
-func TestUnescape(t *testing.T) {
-	// Can we correctly keep and unescape valid chars.
-	value := "abzABZ019\\(\\)\\{\\}\\,\\'\\\"\\\\"
-	expected := "abzABZ019(){},'\"\\"
-	actual := Unescape(value)
-	if expected != actual {
-		t.Errorf("Expected %s, got %s", expected, actual)
+func newDelegator(w http.ResponseWriter, observeWriteHeaderFunc func(int)) delegator {
+	d := &responseWriterDelegator{
+		ResponseWriter:     w,
+		observeWriteHeader: observeWriteHeaderFunc,
 	}
 
-	// Test percent-decoding.
-	value = "%C3%A9%2F|_;:%25%2E"
-	expected = "é/|_;:%."
-	actual = Unescape(value)
-	if expected != actual {
-		t.Errorf("Expected %s, got %s", expected, actual)
+	id := 0
+	if _, ok := w.(http.CloseNotifier); ok {
+		id += closeNotifier
 	}
+	if _, ok := w.(http.Flusher); ok {
+		id += flusher
+	}
+	if _, ok := w.(http.Hijacker); ok {
+		id += hijacker
+	}
+	if _, ok := w.(io.ReaderFrom); ok {
+		id += readerFrom
+	}
+
+	return pickDelegator[id](d)
 }

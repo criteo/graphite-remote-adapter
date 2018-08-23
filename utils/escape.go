@@ -16,6 +16,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -95,6 +96,30 @@ func Escape(tv string) string {
 		// Defaults to percent-encoding.
 		default:
 			fmt.Fprintf(result, "%%%X", b)
+		}
+	}
+	return result.String()
+}
+
+// Unescape takes string that have been escape to comply graphite's storage format
+// and return their original value
+func Unescape(tv string) string {
+	// unescape percent encoding
+	new, _ := url.PathUnescape(tv)
+	length := len(new)
+	result := bytes.NewBuffer(make([]byte, 0, length))
+	for i := 0; i < length; i++ {
+		b := new[i]
+		switch {
+		// / could have been double escaped
+		case b == '\\' && i < length-1:
+			n := new[i+1]
+			// if next byte is not a symbol, this / is legitimate
+			if strings.IndexByte(symbols, n) == -1 {
+				result.WriteByte(b)
+			}
+		default:
+			result.WriteByte(b)
 		}
 	}
 	return result.String()
