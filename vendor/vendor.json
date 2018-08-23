@@ -153,6 +153,18 @@
 			"revisionTime": "2018-05-18T05:39:59Z"
 		},
 		{
+			"checksumSHA1": "g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=",
+			"path": "github.com/gorilla/context",
+			"revision": "08b5f424b9271eedf6f9f0ce86cb9396ed337a42",
+			"revisionTime": "2016-08-17T18:46:32Z"
+		},
+		{
+			"checksumSHA1": "STQSdSj2FcpCf0NLfdsKhNutQT0=",
+			"path": "github.com/gorilla/mux",
+			"revision": "e48e440e4c92e3251d812f8ce7858944dfa3331c",
+			"revisionTime": "2018-08-07T07:52:56Z"
+		},
+		{
 			"checksumSHA1": "5gcgyRkJrdQ5VClihFH6u+dXg7s=",
 			"path": "github.com/grpc-ecosystem/grpc-gateway/runtime",
 			"revision": "a5b66c16bab6156b1cc525e76159bdff463123ba",
@@ -207,10 +219,16 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
-			"checksumSHA1": "WVgL9pNO2RZCCcaXfSYSNEPgtCo=",
+			"checksumSHA1": "moPcCavaEW/C5UnFE+jcHEn7coo=",
 			"path": "github.com/prometheus/client_golang/prometheus",
-			"revision": "faf4ec335fe01ae5a6a0eaa34a5a9333bfbd1a30",
-			"revisionTime": "2018-06-07T12:36:07Z"
+			"revision": "ebce7d0078c0109cbb4de5d50a2b799920b0f0d0",
+			"revisionTime": "2018-08-22T17:59:59Z"
+		},
+		{
+			"checksumSHA1": "d5BiEvD8MrgpWQ6PQJUvawJsMak=",
+			"path": "github.com/prometheus/client_golang/prometheus/promhttp",
+			"revision": "ebce7d0078c0109cbb4de5d50a2b799920b0f0d0",
+			"revisionTime": "2018-08-22T17:59:59Z"
 		},
 		{
 			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package template
 
 import (
 	"errors"
@@ -20,6 +20,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
 func replace(input interface{}, from, to string) (string, error) {
@@ -34,7 +36,7 @@ func split(input interface{}, delimiter string) ([]string, error) {
 }
 
 func escape(input interface{}) string {
-	return Escape(input.(string))
+	return utils.Escape(input.(string))
 }
 
 // isSet indicate is a field is defined in the template data

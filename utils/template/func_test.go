@@ -1,4 +1,4 @@
-package utils
+package template
 
 import (
 	"bytes"

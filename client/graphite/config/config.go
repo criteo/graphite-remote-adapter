@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 
 	"github.com/criteo/graphite-remote-adapter/utils"
+	utils_tmpl "github.com/criteo/graphite-remote-adapter/utils/template"
 	"github.com/prometheus/common/model"
 
 	"gopkg.in/yaml.v2"
@@ -162,7 +163,7 @@ func (tmpl *Template) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	template, err := template.New("").Funcs(utils.TmplFuncMap).Parse(s)
+	template, err := template.New("").Funcs(utils_tmpl.TmplFuncMap).Parse(s)
 	if err != nil {
 		return err
 	}

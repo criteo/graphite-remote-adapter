@@ -34,3 +34,21 @@ func TestEscape(t *testing.T) {
 		t.Errorf("Expected %s, got %s", expected, actual)
 	}
 }
+
+func TestUnescape(t *testing.T) {
+	// Can we correctly keep and unescape valid chars.
+	value := "abzABZ019\\(\\)\\{\\}\\,\\'\\\"\\\\"
+	expected := "abzABZ019(){},'\"\\"
+	actual := Unescape(value)
+	if expected != actual {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+
+	// Test percent-decoding.
+	value = "%C3%A9%2F|_;:%25%2E"
+	expected = "é/|_;:%."
+	actual = Unescape(value)
+	if expected != actual {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
