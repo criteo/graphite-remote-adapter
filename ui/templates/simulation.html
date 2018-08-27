@@ -1,0 +1,27 @@
+{{define "extra-head"}}
+    <script src="static/js/api.js"></script>
+{{end}}
+{{define "content"}}
+<h1>Simulation</h1>
+    <div class="row">
+        <div class="form-group col-12">
+            <fieldset>
+                <legend>Inputs</legend>
+                <textarea class="form-control" id="input" rows=10 placeholder='# Give a list of metrics using prometheus export format
+# All following line will works:
+
+http_requests_total{method="post",code="200"} 1027 1395066363000
+http_requests_total{method="post",code="200"} 1027
+http_requests_total 1027
+# Even comment lines from your /metrics'></textarea>
+                <br/>
+                <button type="button" class="btn btn-secondary" onclick="simulWrite()">Simulate write</button>
+            </fieldset>
+            <fieldset>
+                <legend>Outputs</legend>
+                <div id="outputs"></div>
+                <div id="error-msg"></div>
+            </fieldset>
+        </div>
+    </div>
+{{end}}
