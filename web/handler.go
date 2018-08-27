@@ -105,6 +105,7 @@ func New(logger log.Logger, cfg *config.Config) *Handler {
 	router.Methods("GET").Path("/-/healthy").Handler(instrumentHandler("healthy", h.healthy))
 	router.Methods("POST").Path("/-/reload").Handler(instrumentHandler("reload", h.reload))
 	router.Methods("GET").Path("/").Handler(instrumentHandler("home", h.home))
+	router.Methods("GET").Path("/simulation").Handler(instrumentHandler("home", h.simulation))
 
 	router.Methods("POST").Path("/write").Handler(instrumentHandler("write", h.write))
 	router.Methods("POST").Path("/read").Handler(instrumentHandler("read", h.read))
@@ -194,6 +195,17 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bytes, err := template.ExecuteTemplate("status.html", status)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(bytes)
+}
+
+func (h *Handler) simulation(w http.ResponseWriter, r *http.Request) {
+	bytes, err := template.ExecuteTemplate("simulation.html", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
