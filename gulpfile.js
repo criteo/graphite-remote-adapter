@@ -8,14 +8,19 @@ gulp.task('default', ['bootstrap', 'fontawesome'], () => {});
 // BOOTSTRAP
 ////////////////////////////
 
-gulp.task('bootstrap', ['bootstrap_theme'], () => {});
+gulp.task('bootstrap', ['bootstrap_js', 'jquery', 'bootstrap_theme'], () => {});
 
-// bootstrap_js is not needed yet
-// // Take js from bootstrap and put it in static files
-// gulp.task('bootstrap_js', function() {
-//   return gulp.src('node_modules/bootstrap/dist/js/bootstrap.min.js')
-//     .pipe(gulp.dest('ui/static/js'));
-// });
+// Take js from bootstrap and put it in static files
+gulp.task('bootstrap_js', function() {
+  return gulp.src('node_modules/bootstrap/dist/js/bootstrap.min.js')
+    .pipe(gulp.dest('ui/static/js'));
+});
+
+// Take js from bootstrap and put it in static files
+gulp.task('jquery', function() {
+  return gulp.src('node_modules/jquery/dist/jquery.js')
+    .pipe(gulp.dest('ui/static/js'));
+});
 
 // Take bootswatch theme and put it in static files
 gulp.task('bootstrap_theme', function() {
@@ -23,7 +28,6 @@ gulp.task('bootstrap_theme', function() {
     .pipe(rename('./bootstrap-lumen.min.css'))
     .pipe(gulp.dest('ui/static/css/'));
 });
-
 
 ////////////////////////////
 // FONT AWESOME
