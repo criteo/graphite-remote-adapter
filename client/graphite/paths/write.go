@@ -8,7 +8,7 @@ import (
 	"sort"
 
 	"github.com/criteo/graphite-remote-adapter/client/graphite/config"
-	"github.com/criteo/graphite-remote-adapter/utils"
+	graphite_tmpl "github.com/criteo/graphite-remote-adapter/client/graphite/template"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/common/model"
 )
@@ -87,7 +87,7 @@ func defaultPath(m model.Metric, format Format, prefix string) string {
 	var lbuffer bytes.Buffer
 
 	buffer.WriteString(prefix)
-	buffer.WriteString(utils.Escape(string(m[model.MetricNameLabel])))
+	buffer.WriteString(graphite_tmpl.Escape(string(m[model.MetricNameLabel])))
 
 	// We want to sort the labels.
 	labels := make(model.LabelNames, 0, len(m))
@@ -103,7 +103,7 @@ func defaultPath(m model.Metric, format Format, prefix string) string {
 		}
 
 		k := string(l)
-		v := utils.Escape(string(m[l]))
+		v := graphite_tmpl.Escape(string(m[l]))
 
 		if format == FormatCarbonOpenMetrics {
 			// https://github.com/RichiH/OpenMetrics/blob/master/metric_exposition_format.md

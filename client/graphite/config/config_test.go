@@ -22,6 +22,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	graphite_tmpl "github.com/criteo/graphite-remote-adapter/client/graphite/template"
 	utils_tmpl "github.com/criteo/graphite-remote-adapter/utils/template"
 )
 
@@ -81,7 +82,7 @@ func prepareExpectedRegexp(s string) Regexp {
 }
 
 func prepareExpectedTemplate(s string) Template {
-	t, _ := template.New("").Funcs(utils_tmpl.TmplFuncMap).Parse(s)
+	t, _ := template.New("").Funcs(utils_tmpl.TmplFuncMap).Funcs(graphite_tmpl.TmplFuncMap).Parse(s)
 	return Template{t, s}
 }
 

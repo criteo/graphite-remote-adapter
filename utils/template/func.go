@@ -20,8 +20,6 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
-
-	"github.com/criteo/graphite-remote-adapter/utils"
 )
 
 func replace(input interface{}, from, to string) (string, error) {
@@ -33,10 +31,6 @@ func replace(input interface{}, from, to string) (string, error) {
 
 func split(input interface{}, delimiter string) ([]string, error) {
 	return strings.Split(input.(string), delimiter), nil
-}
-
-func escape(input interface{}) string {
-	return utils.Escape(input.(string))
 }
 
 // isSet indicate is a field is defined in the template data
@@ -63,7 +57,6 @@ func replaceRegex(input interface{}, matcher, replaceWith string) (string, error
 var TmplFuncMap = template.FuncMap{
 	"replace":      replace,
 	"split":        split,
-	"escape":       escape,
 	"isSet":        isSet,
 	"replaceRegex": replaceRegex,
 }

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/criteo/graphite-remote-adapter/utils"
+	graphite_tmpl "github.com/criteo/graphite-remote-adapter/client/graphite/template"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
@@ -47,7 +47,7 @@ func MetricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {
 		return nil, err
 	}
 	for i := 1; i < len(nodes); i += 2 {
-		labels = append(labels, &prompb.Label{Name: utils.Unescape(nodes[i]), Value: utils.Unescape(nodes[i+1])})
+		labels = append(labels, &prompb.Label{Name: graphite_tmpl.Unescape(nodes[i]), Value: graphite_tmpl.Unescape(nodes[i+1])})
 	}
 	return labels, nil
 }
