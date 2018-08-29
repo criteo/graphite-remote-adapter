@@ -63,20 +63,15 @@ func (c *Client) disconnectFromCarbon() {
 	c.carbonCon = nil
 }
 
-// Write implements the client.Writer interface.
-func (c *Client) Write(samples model.Samples, r *http.Request) error {
-	if c.cfg.Write.CarbonAddress == "" {
-		return nil
-	}
+func (c *Client) prepareWrite(samples model.Samples, r *http.Request) ([]*bytes.Buffer, error) {
+	level.Debug(c.logger).Log(
+		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 
 	graphitePrefix, err := c.getGraphitePrefix(r)
 	if err != nil {
 		level.Warn(c.logger).Log("prefix", graphitePrefix, "err", err)
-		return err
+		return nil, err
 	}
-
-	level.Debug(c.logger).Log(
-		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 
 	currentBuf := bytes.NewBufferString("")
 	bytesBuffers := []*bytes.Buffer{currentBuf}
@@ -96,23 +91,44 @@ func (c *Client) Write(samples model.Samples, r *http.Request) error {
 			level.Debug(c.logger).Log("line", str, "msg", "Sending")
 		}
 	}
+	return bytesBuffers, nil
+}
 
-	// We are going to use the socket, lock it.
-	c.carbonConLock.Lock()
-	defer c.carbonConLock.Unlock()
-
-	for _, buf := range bytesBuffers {
-		conn, err := c.connectToCarbon()
-		if err != nil {
-			return err
-		}
-
-		_, err = conn.Write(buf.Bytes())
-		if err != nil {
-			c.disconnectFromCarbon()
-			return err
-		}
+// Write implements the client.Writer interface.
+func (c *Client) Write(samples model.Samples, r *http.Request, dryRun bool) ([]byte, error) {
+	if c.cfg.Write.CarbonAddress == "" {
+		return []byte("Skipped: Not set carbon address."), nil
 	}
 
-	return nil
+	bytesBuffers, err := c.prepareWrite(samples, r)
+	if err != nil {
+		return nil, err
+	}
+
+	if dryRun {
+		dryRunResponse := make([]byte, 0)
+		for _, buf := range bytesBuffers {
+			dryRunResponse = append(dryRunResponse, buf.Bytes()...)
+		}
+		return dryRunResponse, nil
+
+	} else {
+		// We are going to use the socket, lock it.
+		c.carbonConLock.Lock()
+		defer c.carbonConLock.Unlock()
+
+		for _, buf := range bytesBuffers {
+			conn, err := c.connectToCarbon()
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = conn.Write(buf.Bytes())
+			if err != nil {
+				c.disconnectFromCarbon()
+				return nil, err
+			}
+		}
+		return []byte("Done."), nil
+	}
 }
