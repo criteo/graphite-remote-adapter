@@ -1,13 +1,13 @@
 package web
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/criteo/graphite-remote-adapter/client"
-	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -61,44 +61,85 @@ func init() {
 func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 	h.lock.RLock()
 	defer h.lock.RUnlock()
-
 	level.Debug(h.logger).Log("request", r, "msg", "Handling /write request")
+
+	// As default we expected snappy encoded protobuf.
+	// But for simulation prupose we also accept json.
+	dryRun := false
+	if ct := r.Header.Get("Content-Type"); ct == "application/json" {
+		dryRun = true
+	}
+
+	// Parse samples from request.
+	var samples model.Samples
+	var err error
+	if dryRun {
+		samples, err = h.parseFakeWriteRequest(w, r)
+	} else {
+		samples, err = h.parseWriteRequest(w, r)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	receivedSamples.Add(float64(len(samples)))
+
+	// Execute write on each writer clients.
+	var wg sync.WaitGroup
+	writeResponse := make(map[string]string)
+	for _, writer := range h.writers {
+		wg.Add(1)
+		go func(client client.Writer) {
+			msgBytes, err := h.instrumentedWriteSamples(client, samples, r, dryRun)
+			if err != nil {
+				writeResponse[client.Name()] = err.Error()
+			} else {
+				writeResponse[client.Name()] = string(msgBytes)
+			}
+			wg.Done()
+		}(writer)
+	}
+	wg.Wait()
+
+	// Write response body.
+	data, err := json.Marshal(writeResponse)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+func (h *Handler) parseFakeWriteRequest(w http.ResponseWriter, r *http.Request) (model.Samples, error) {
+	decoder := json.NewDecoder(r.Body)
+	var samples []*model.Sample
+	err := decoder.Decode(&samples)
+	if err != nil {
+		return nil, err
+	}
+	return samples, nil
+}
+
+func (h *Handler) parseWriteRequest(w http.ResponseWriter, r *http.Request) (model.Samples, error) {
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		level.Warn(h.logger).Log("err", err, "msg", "Error reading request body")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	reqBuf, err := snappy.Decode(nil, compressed)
 	if err != nil {
 		level.Warn(h.logger).Log("err", err, "msg", "Error decoding request body")
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, err
 	}
 
 	var req prompb.WriteRequest
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
 		level.Warn(h.logger).Log("err", err, "msg", "Error unmarshalling protobuf")
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return nil, err
 	}
 
-	samples := protoToSamples(&req)
-	receivedSamples.Add(float64(len(samples)))
-
-	var wg sync.WaitGroup
-	for _, w := range h.writers {
-		wg.Add(1)
-		go func(rw client.Writer) {
-			sendSamples(h.logger, rw, samples, r)
-			wg.Done()
-		}(w)
-	}
-	wg.Wait()
-}
-
-func protoToSamples(req *prompb.WriteRequest) model.Samples {
 	var samples model.Samples
 	for _, ts := range req.Timeseries {
 		metric := make(model.Metric, len(ts.Labels))
@@ -114,19 +155,23 @@ func protoToSamples(req *prompb.WriteRequest) model.Samples {
 			})
 		}
 	}
-	return samples
+	return samples, nil
 }
 
-func sendSamples(logger log.Logger, w client.Writer, samples model.Samples, r *http.Request) {
+func (h *Handler) instrumentedWriteSamples(
+	w client.Writer, samples model.Samples, r *http.Request, dryRun bool) ([]byte, error) {
+
 	begin := time.Now()
-	err := w.Write(samples, r)
+	msgBytes, err := w.Write(samples, r, dryRun)
 	duration := time.Since(begin).Seconds()
 	if err != nil {
-		level.Warn(logger).Log(
+		level.Warn(h.logger).Log(
 			"num_samples", len(samples), "storage", w.Name(),
 			"err", err, "msg", "Error sending samples to remote storage")
 		failedSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
+		return nil, err
 	}
 	sentSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
 	sentBatchDuration.WithLabelValues(w.Name()).Observe(duration)
+	return msgBytes, nil
 }

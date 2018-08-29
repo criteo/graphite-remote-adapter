@@ -27,9 +27,9 @@ type Client interface {
 	Shutdown()
 }
 
-// Writer is a client taht sends a batch of samples to remote.
+// Writer is a client that sends a batch of samples to remote.
 type Writer interface {
-	Write(samples model.Samples, r *http.Request) error
+	Write(samples model.Samples, r *http.Request, dryRun bool) ([]byte, error)
 	Client
 }
 

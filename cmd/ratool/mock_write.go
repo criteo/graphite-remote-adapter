@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"time"
 
@@ -121,7 +123,13 @@ func sendWriteRequestAsProm(req *prompb.WriteRequest, remoteAdapterURL *url.URL)
 	if err != nil {
 		return err
 	}
+	level.Info(logger).Log("status", httpResp.StatusCode)
 
-	level.Info(logger).Log("status", httpResp.StatusCode, "body", httpResp.Body)
+	b, err := ioutil.ReadAll(httpResp.Body)
+	if err != nil {
+		return err
+	}
+	os.Stdout.Write(b)
+
 	return nil
 }
