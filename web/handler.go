@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"net/http/pprof"
 	"sync"
 
 	"github.com/criteo/graphite-remote-adapter/client"
@@ -88,15 +87,11 @@ func New(logger log.Logger, cfg *config.Config) *Handler {
 	}
 	h.buildClients()
 
-	pprofSubRouter := router.PathPrefix("/pprof/").Subrouter()
-	pprofSubRouter.Methods("GET").Path("/").Handler(http.HandlerFunc(pprof.Index))
-	pprofSubRouter.Methods("GET").Path("/cmdline").Handler(http.HandlerFunc(pprof.Cmdline))
-	pprofSubRouter.Methods("GET").Path("/profile").Handler(http.HandlerFunc(pprof.Profile))
-	pprofSubRouter.Methods("GET").Path("/symbol").Handler(http.HandlerFunc(pprof.Symbol))
-	pprofSubRouter.Methods("GET").Path("/trace").Handler(http.HandlerFunc(pprof.Trace))
-
 	staticFs := http.FileServer(
 		&assetfs.AssetFS{Asset: ui.Asset, AssetDir: ui.AssetDir, AssetInfo: ui.AssetInfo, Prefix: ""})
+
+	// Add pprof handler.
+	router.PathPrefix("/debug/").Handler(http.DefaultServeMux)
 
 	// Add your routes as needed
 	router.Methods("GET").PathPrefix("/static/").Handler(staticFs)
