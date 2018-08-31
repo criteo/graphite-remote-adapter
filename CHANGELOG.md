@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2018-08-31
+### Added
+- new ui page to simulate write requests
+- jquerry in ui ressources
+- use gorilla/mux router
+
 ## [0.1.2] - 2018-07-06
 ### Fixed
 - verify front-end is up to date on every travis build
@@ -122,7 +128,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release with base project.
 
-[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/criteo/graphite-remote-adapter/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/criteo/graphite-remote-adapter/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/criteo/graphite-remote-adapter/compare/v0.0.16...v0.1.0
