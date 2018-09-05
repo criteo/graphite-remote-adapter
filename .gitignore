@@ -24,3 +24,7 @@ benchmark.txt
 
 # JS stuff
 node_modules/
+
+# Binaries
+graphite-remote-adapter
+ratool
