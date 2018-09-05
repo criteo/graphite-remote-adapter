@@ -112,23 +112,22 @@ func (c *Client) Write(samples model.Samples, r *http.Request, dryRun bool) ([]b
 		}
 		return dryRunResponse, nil
 
-	} else {
-		// We are going to use the socket, lock it.
-		c.carbonConLock.Lock()
-		defer c.carbonConLock.Unlock()
-
-		for _, buf := range bytesBuffers {
-			conn, err := c.connectToCarbon()
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = conn.Write(buf.Bytes())
-			if err != nil {
-				c.disconnectFromCarbon()
-				return nil, err
-			}
-		}
-		return []byte("Done."), nil
 	}
+	// We are going to use the socket, lock it.
+	c.carbonConLock.Lock()
+	defer c.carbonConLock.Unlock()
+
+	for _, buf := range bytesBuffers {
+		conn, err := c.connectToCarbon()
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = conn.Write(buf.Bytes())
+		if err != nil {
+			c.disconnectFromCarbon()
+			return nil, err
+		}
+	}
+	return []byte("Done."), nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
+// MetricLabelsFromTags provides labels for given tags.
 func MetricLabelsFromTags(tags map[string]string, prefix string) ([]*prompb.Label, error) {
 	// It translates Graphite tags directly into label and values.
 	var labels []*prompb.Label
@@ -34,6 +35,7 @@ func MetricLabelsFromTags(tags map[string]string, prefix string) ([]*prompb.Labe
 	return labels, nil
 }
 
+// MetricLabelsFromPath provides labels from given path.
 func MetricLabelsFromPath(path string, prefix string) ([]*prompb.Label, error) {
 	// It uses the "default" write format to read back (See defaultPath function)
 	// <prefix.><__name__.>[<labelName>.<labelValue>. for each label in alphabetic order]

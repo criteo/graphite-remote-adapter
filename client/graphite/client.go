@@ -98,7 +98,7 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	}
 }
 
-// Shutdowns the client.
+// Shutdown the client.
 func (c *Client) Shutdown() {
 	c.carbonConLock.Lock()
 	defer c.carbonConLock.Unlock()

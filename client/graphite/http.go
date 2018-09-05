@@ -43,7 +43,7 @@ type Datapoint struct {
 	Timestamp int64
 }
 
-// Tags
+// Tags mapping.
 type Tags map[string]string
 
 // UnmarshalJSON unmarshals a Datapoint from json
