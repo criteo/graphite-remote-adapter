@@ -20,6 +20,12 @@ BIN_DIR                 ?= $(shell pwd)
 DOCKER_IMAGE_NAME       ?= graphite-remote-adapter
 DOCKER_IMAGE_TAG        ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 
+ifeq (, $(shell which golint))
+	LINTABLE := (a)
+else
+	LINTABLE := $(go list ./...)
+endif
+
 ifdef DEBUG
 	bindata_flags = -debug
 endif
@@ -34,6 +40,10 @@ test:
 style:
 	@echo ">> checking code style"
 	@! gofmt -d $(shell find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
+
+lint:
+	@echo ">> running golint"
+	@./lint.sh $(GO)
 
 format:
 	@echo ">> formatting code"
@@ -76,4 +86,4 @@ clean:
 proto:
 
 
-.PHONY: all style format build test vet assets tarball docker promu proto
+.PHONY: all style format build test vet assets tarball docker promu proto lint
