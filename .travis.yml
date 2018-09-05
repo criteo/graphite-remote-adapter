@@ -15,6 +15,7 @@ install:
 
 script:
 - make style test
+- make lint
 # verify front-end is up to date.
 - make clean assets
 - git diff --exit-code
