@@ -8,7 +8,7 @@ else
     GO_EXEC=$1
 fi
 
-LINTABLE=$(${GO_EXEC} list ./...)
+LINTABLE=$(${GO_EXEC} list ./... | grep -v graphite-remote-adapter/ui)
 
 echo "Checking golint..."
 lint_result=$(echo $LINTABLE | xargs -n 1 golint)
