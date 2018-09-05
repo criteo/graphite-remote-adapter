@@ -10,6 +10,9 @@ go:
 
 go_import_path: github.com/criteo/graphite-remote-adapter
 
+install:
+- go get github.com/golang/lint/golint
+
 script:
 - make style test
 # verify front-end is up to date.

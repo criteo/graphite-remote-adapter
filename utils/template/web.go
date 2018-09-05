@@ -21,6 +21,7 @@ func getTemplate(name string) (string, error) {
 	return string(baseTmpl) + string(pageTmpl), nil
 }
 
+// ExecuteTemplate renders template for given name with provided data.
 func ExecuteTemplate(name string, data interface{}) ([]byte, error) {
 	text, err := getTemplate(name)
 	if err != nil {
