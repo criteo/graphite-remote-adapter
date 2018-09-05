@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-// ToDatapoints builds points from
+// ToDatapoints builds points from samples.
 func ToDatapoints(s *model.Sample, format Format, prefix string, rules []*config.Rule, templateData map[string]interface{}) ([]string, error) {
 	t := float64(s.Timestamp.UnixNano()) / 1e9
 	v := float64(s.Value)
