@@ -161,19 +161,42 @@ $ cat out.txt
 
 #### Unittests (automated config unittests)
 
-If you want to unittest your configuration without requiring any network.
+If you want to unit test your configurations without requiring any network, define a file for each configuration you
+want to test.
 
-file -> ratool -> file
+Example:
+
+```yaml
+config_file: tested_remote_adapter_config_file.yml
+
+tests:
+  - name: "Test label"
+    input: |
+        # Use the Prometheus exposition text format
+        toto{foo="bar", cluster="test"} 42
+        toto{foo="bar", cluster="canary"} 34
+        # You can even force a given timestamp
+        toto{foo="bazz", cluster="canary"} 18 1528819131000
+    output: |
+        toto.my.templated.path.test.foo.bar.lulu 42.000000 1570802650
+        toto.canary.other.template.bar 34.000000 1570802650
+        toto.canary.other.template.bazz 18.000000 1528819131
+
+  - name: "Other test"
+    input: |
+        foo{bar="baz"} 10
+    output: |
+        foo.bar.baz.lol 10 1528819131000
+```
+
+To run it:
+
 ```
 $ make build
-$ cat cmd/ratool/input.metrics.example
-  # Use the Prometheus exposition text format
-  toto{foo="bar", cluster="test"} 42
-  toto{foo="bar", cluster="canary"} 34
-  # You can even force a given timestamp
-  toto{foo="bazz", cluster="canary"} 18 1528819131000
-$ ./ratool unittest --metrics.file cmd/ratool/input.metrics.example  --config.file config_file.yml
-  toto.my.templated.path.test.foo.bar.lulu 42.000000 1570802650
-  toto.canary.other.template.bar 34.000000 1570802650
-  toto.canary.other.template.bazz 18.000000 1528819131
+$ ./ratool unittest --test.file test_file.yml
 ```
+
+The tool will exit with a non-zero code if the output of the remote adapter for the given configuration and the given 
+input does not match the expected output (order of the lines is not checked). 
+
+It also prints the diff on the standard error stream. 
