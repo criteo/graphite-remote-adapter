@@ -26,5 +26,5 @@ benchmark.txt
 node_modules/
 
 # Binaries
-graphite-remote-adapter
-ratool
+./graphite-remote-adapter
+./ratool
