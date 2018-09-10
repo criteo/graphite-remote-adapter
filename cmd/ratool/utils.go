@@ -26,8 +26,12 @@ func loadSamplesFile(filename string) ([]*model.Sample, error) {
 	if err != nil {
 		return nil, err
 	}
+	return readSamplesFile(file)
+}
+
+func readSamplesFile(reader io.Reader) ([]*model.Sample, error) {
 	dec := &expfmt.SampleDecoder{
-		Dec: expfmt.NewDecoder(file, expfmt.FmtText),
+		Dec: expfmt.NewDecoder(reader, expfmt.FmtText),
 		Opts: &expfmt.DecodeOptions{
 			Timestamp: model.Now(),
 		},
