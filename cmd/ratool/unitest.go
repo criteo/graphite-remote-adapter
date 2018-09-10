@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/criteo/graphite-remote-adapter/config"
 	"github.com/go-kit/kit/log/level"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -59,4 +59,24 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	}
 
 	return nil
+}
+
+type unittestConfig struct {
+	ConfigFile string        `yaml:"config_file"`
+	Tests      []*testConfig `yaml:"tests"`
+}
+
+type testConfig struct {
+	Name   string `yaml:"name"`
+	Input  string `yaml:"input"`
+	Output string `yaml:"output"`
+}
+
+func parseUnittestConfig(content []byte) (*unittestConfig, error) {
+	cfg := &unittestConfig{}
+	err := yaml.Unmarshal(content, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
