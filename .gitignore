@@ -28,3 +28,5 @@ node_modules/
 # Binaries
 /graphite-remote-adapter
 /ratool
+
+*.log
