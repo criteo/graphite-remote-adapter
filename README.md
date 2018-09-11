@@ -198,3 +198,22 @@ The tool will exit with a non-zero code if the output of the remote adapter for 
 input does not match the expected output (order of the lines is not checked). 
 
 It also prints the diff on the standard error stream. 
+
+Example of output:
+
+```plain
+./ratool unittest --config.file foo.yml --test.file bar.yml
+# Testing foo.yml
+## Test label
+-toto.my.templated.path.test.foo.bar.lulu 42.000000 1570802650
+-toto.canary.other.template.bar 34.000000 1570802650
+-toto.canary.other.template.bazz 18.000000 1528819131
++toto.cluster.test.foo.bar 42.000000 1536658898
++
++toto.cluster.canary.foo.bar 34.000000 1536658898
++
++toto.cluster.canary.foo.bazz 18.000000 1528819131
+## Other test
+-foo.bar.baz.lol 10 1528819131000
++foo.bar.baz 10.000000 1536658898
+```
