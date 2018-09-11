@@ -10,6 +10,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -52,6 +53,7 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	}
 
 	fmt.Printf("# Testing %s\n", w.inputConfigFile)
+	hasDiffs := false
 	for _, testContext := range testCfg.Tests {
 		fmt.Printf("## %s\n", testContext.Name)
 		output, err := makeOutput(testContext, graCfg)
@@ -61,8 +63,13 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 		}
 		outputDiff := makeDiff(testContext.Output, output)
 		if len(outputDiff) > 0 {
+			hasDiffs = true
 			fmt.Println(strings.Join(outputDiff, "\n"))
 		}
+	}
+
+	if hasDiffs {
+		os.Exit(-1)
 	}
 
 	return nil
