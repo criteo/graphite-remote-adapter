@@ -167,8 +167,6 @@ want to test.
 Example:
 
 ```yaml
-config_file: tested_remote_adapter_config_file.yml
-
 tests:
   - name: "Test label"
     input: |
@@ -193,7 +191,7 @@ To run it:
 
 ```
 $ make build
-$ ./ratool unittest --test.file test_file.yml
+$ ./ratool unittestv --config.file config_file.yml --test.file test_file.yml
 ```
 
 The tool will exit with a non-zero code if the output of the remote adapter for the given configuration and the given 

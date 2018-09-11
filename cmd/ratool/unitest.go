@@ -18,6 +18,7 @@ const (
 
 type unittestCmd struct {
 	inputConfigFile string
+	inputTestFile string
 }
 
 func configureUnittestCmd(app *kingpin.Application) {
@@ -26,8 +27,10 @@ func configureUnittestCmd(app *kingpin.Application) {
 		unittestCmd = app.Command("unittest", unittestHelp)
 	)
 
-	unittestCmd.Flag("test.file", "Unit-test description file.").
+	unittestCmd.Flag("config.file", "Unit-tested configuration file.").
 		Required().ExistingFileVar(&w.inputConfigFile)
+	unittestCmd.Flag("test.file", "Unit-test description file.").
+		Required().ExistingFileVar(&w.inputTestFile)
 
 	unittestCmd.Action(w.Unittest)
 }
@@ -35,19 +38,19 @@ func configureUnittestCmd(app *kingpin.Application) {
 func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	setupLogger()
 
-	testCfg, err := loadUnittestConfig(w.inputConfigFile)
+	testCfg, err := loadUnittestConfig(w.inputTestFile)
 	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "error loading unit-test description file")
 		return err
 	}
 
-	graCfg, err := config.LoadFile(logger, testCfg.ConfigFile)
+	graCfg, err := config.LoadFile(logger, w.inputConfigFile)
 	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "error loading remote-adapter configuration file")
 		return err
 	}
 
-	fmt.Printf("# Testing %s\n", testCfg.ConfigFile)
+	fmt.Printf("# Testing %s\n", w.inputConfigFile)
 	for _, testContext := range testCfg.Tests {
 		fmt.Printf("## %s\n", testContext.Name)
 		samples, err := makeSamples(testContext.Input)
@@ -72,7 +75,6 @@ func makeSamples(input string) ([]*model.Sample, error) {
 }
 
 type unittestConfig struct {
-	ConfigFile string        `yaml:"config_file"`
 	Tests      []*testConfig `yaml:"tests"`
 }
 
