@@ -8,8 +8,6 @@ import (
 
 func Test_parseUnittestConfig(t *testing.T) {
 	const testInputConfig = `
-config_file: config_file.yml
-
 tests:
   - name: "Test label"
     input: |
@@ -30,7 +28,6 @@ tests:
         foo.bar.baz.lol 10 1528819131000`
 
 	expectedConfig := &unittestConfig{
-		ConfigFile: "config_file.yml",
 		Tests: []*testConfig{
 			{
 				Name: "Test label",
