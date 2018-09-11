@@ -9,7 +9,7 @@
     "bootstrap": "^4.1.1",
     "bootswatch": "^4.1.1",
     "font-awesome": "^4.7.0",
-    "gulp": "^3.9.1",
-    "gulp-rename": "^1.2.2"
+    "gulp": "^4.0.0",
+    "gulp-rename": "^1.4.0"
   }
 }

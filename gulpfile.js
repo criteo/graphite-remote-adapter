@@ -1,14 +1,9 @@
 var gulp = require('gulp');
 var rename = require("gulp-rename");
 
-gulp.task('default', ['bootstrap', 'fontawesome'], () => {});
-
-
 ////////////////////////////
 // BOOTSTRAP
 ////////////////////////////
-
-gulp.task('bootstrap', ['bootstrap_js', 'jquery', 'bootstrap_theme'], () => {});
 
 // Take js from bootstrap and put it in static files
 gulp.task('bootstrap_js', function() {
@@ -29,12 +24,11 @@ gulp.task('bootstrap_theme', function() {
     .pipe(gulp.dest('ui/static/css/'));
 });
 
+gulp.task('bootstrap', gulp.series('bootstrap_js', 'jquery', 'bootstrap_theme'), () => {});
+
 ////////////////////////////
 // FONT AWESOME
 ////////////////////////////
-
-gulp.task('fontawesome', ['fontawesome_css','fontawesome_fonts'], () => {});
-
 
 // Take CSS for fontawesome and put them in static files
 gulp.task('fontawesome_css', function() {
@@ -47,3 +41,11 @@ gulp.task('fontawesome_fonts', function() {
   return gulp.src("node_modules/font-awesome/fonts/*")
     .pipe(gulp.dest('ui/static/fonts'));
 });
+
+gulp.task('fontawesome', gulp.series('fontawesome_css','fontawesome_fonts'), () => {});
+
+////////////////////////////
+// DEFAULT
+////////////////////////////
+
+gulp.task('default', gulp.series('bootstrap', 'fontawesome'), () => {});
