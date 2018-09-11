@@ -21,6 +21,12 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "nHJbl1D+H7h2zyEgXI3qXNATkEU=",
+			"path": "github.com/andreyvit/diff",
+			"revision": "c7f18ee00883bfd3b00e0a2bf7607827e0148ad4",
+			"revisionTime": "2017-04-06T06:49:48Z"
+		},
+		{
 			"checksumSHA1": "0rido7hYHQtfq3UJzVT5LClLAWc=",
 			"path": "github.com/beorn7/perks/quantile",
 			"revision": "3a771d992973f24aa725d07868b467d1ddfceafb",
@@ -307,6 +313,12 @@
 			"path": "github.com/prometheus/prometheus/prompb",
 			"revision": "25e2d9f152b634d65123ef11342aceb23e66a1a2",
 			"revisionTime": "2018-06-08T13:01:05Z"
+		},
+		{
+			"checksumSHA1": "QxBGuFiDP7AZx9/QOwJVVDlHjLM=",
+			"path": "github.com/sergi/go-diff/diffmatchpatch",
+			"revision": "da645544ed44df016359bd4c0e3dc60ee3a0da43",
+			"revisionTime": "2018-02-05T16:33:09Z"
 		},
 		{
 			"checksumSHA1": "6LwXZI7kXm1C0h4Ui0Y52p9uQhk=",
