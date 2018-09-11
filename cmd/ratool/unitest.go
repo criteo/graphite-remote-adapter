@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/andreyvit/diff"
 	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
 	"github.com/criteo/graphite-remote-adapter/config"
 	"github.com/go-kit/kit/log/level"
@@ -18,7 +19,7 @@ const (
 
 type unittestCmd struct {
 	inputConfigFile string
-	inputTestFile string
+	inputTestFile   string
 }
 
 func configureUnittestCmd(app *kingpin.Application) {
@@ -53,20 +54,38 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	fmt.Printf("# Testing %s\n", w.inputConfigFile)
 	for _, testContext := range testCfg.Tests {
 		fmt.Printf("## %s\n", testContext.Name)
-		samples, err := makeSamples(testContext.Input)
+		output, err := makeOutput(testContext, graCfg)
 		if err != nil {
+			level.Error(logger).Log("err", err, "msg", fmt.Sprintf("failed to generate output for test case %s", testContext.Name))
 			return err
 		}
-
-		for _, s := range samples {
-			datapoints, _ := paths.ToDatapoints(s, paths.FormatCarbon, "", graCfg.Graphite.Write.Rules, graCfg.Graphite.Write.TemplateData)
-			for _, dt := range datapoints {
-				fmt.Print(dt)
-			}
+		outputDiff := makeDiff(testContext.Output, output)
+		if len(outputDiff) > 0 {
+			fmt.Println(strings.Join(outputDiff, "\n"))
 		}
 	}
 
 	return nil
+}
+
+func makeDiff(expected string, actual string) []string {
+	return diff.LineDiffAsLines(expected, actual)
+}
+
+func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) {
+	samples, err := makeSamples(testContext.Input)
+	if err != nil {
+		return "", err
+	}
+
+	var outputPaths []string
+	for _, s := range samples {
+		datapoints, _ := paths.ToDatapoints(s, paths.FormatCarbon, "", graCfg.Graphite.Write.Rules, graCfg.Graphite.Write.TemplateData)
+		for _, dt := range datapoints {
+			outputPaths = append(outputPaths, dt)
+		}
+	}
+	return strings.Join(outputPaths, "\n"), nil
 }
 
 func makeSamples(input string) ([]*model.Sample, error) {
@@ -75,7 +94,7 @@ func makeSamples(input string) ([]*model.Sample, error) {
 }
 
 type unittestConfig struct {
-	Tests      []*testConfig `yaml:"tests"`
+	Tests []*testConfig `yaml:"tests"`
 }
 
 type testConfig struct {
