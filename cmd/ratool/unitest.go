@@ -94,7 +94,7 @@ func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) 
 		}
 	}
 	sort.Strings(outputPaths)
-	return strings.Join(outputPaths, "\n"), nil
+	return strings.Join(outputPaths, ""), nil
 }
 
 func makeSamples(input string) ([]*model.Sample, error) {
