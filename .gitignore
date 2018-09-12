@@ -14,7 +14,6 @@
 *.iml
 .idea
 
-/graphite_storage_adapter
 benchmark.txt
 /.build
 /.release
