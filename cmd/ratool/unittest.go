@@ -66,6 +66,8 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 			hasDiffs = true
 			fmt.Println("Unexpected output:")
 			fmt.Println(strings.Join(outputDiff, "\n"))
+		} else {
+			fmt.Println("OK")
 		}
 	}
 
