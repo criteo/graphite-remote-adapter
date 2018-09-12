@@ -7,6 +7,7 @@ import (
 	"github.com/criteo/graphite-remote-adapter/config"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -77,7 +78,32 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 }
 
 func makeDiff(expected string, actual string) []string {
-	return diff.LineDiffAsLines(expected, actual)
+	trimmedExpected := trimTimestamps(expected)
+	trimmedActual := trimTimestamps(actual)
+
+	dmp := diffmatchpatch.New()
+	diffResult := dmp.DiffMain(trimmedExpected, trimmedActual, false)
+	for _,r := range diffResult {
+		if r.Type != diffmatchpatch.DiffEqual {
+			// Generate patch-style diff
+			return diff.LineDiffAsLines(trimmedExpected, trimmedActual)
+		}
+	}
+
+	return nil
+}
+
+func trimTimestamps(s string) string {
+	lines := strings.Split(s, "\n")
+	var trimmedLines []string
+	for _,line := range lines {
+		if len(line) > 0 {
+			lineComponents := strings.Split(line, " ")
+			lineWithoutTimestamp := lineComponents[0:2]
+			trimmedLines = append(trimmedLines, strings.Join(lineWithoutTimestamp, " "))
+		}
+	}
+	return strings.Join(trimmedLines, "\n")
 }
 
 func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) {
