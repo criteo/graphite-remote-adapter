@@ -66,6 +66,7 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 		outputDiff := makeDiff(testContext.Output, output)
 		if len(outputDiff) > 0 {
 			hasDiffs = true
+			fmt.Println("Unexpected output:")
 			fmt.Println(strings.Join(outputDiff, "\n"))
 		}
 	}
