@@ -84,7 +84,7 @@ func makeDiff(expected string, actual string) []string {
 
 	dmp := diffmatchpatch.New()
 	diffResult := dmp.DiffMain(trimmedExpected, trimmedActual, false)
-	for _,r := range diffResult {
+	for _, r := range diffResult {
 		if r.Type != diffmatchpatch.DiffEqual {
 			// Generate patch-style diff
 			return diff.LineDiffAsLines(trimmedExpected, trimmedActual)
@@ -97,7 +97,7 @@ func makeDiff(expected string, actual string) []string {
 func trimTimestamps(s string) string {
 	lines := strings.Split(s, "\n")
 	var trimmedLines []string
-	for _,line := range lines {
+	for _, line := range lines {
 		if len(line) > 0 {
 			lineComponents := strings.Split(line, " ")
 			lineWithoutTimestamp := lineComponents[0:2]
