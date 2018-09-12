@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -21,8 +22,7 @@ const (
 )
 
 type unittestCmd struct {
-	inputConfigFile string
-	inputTestFile   string
+	inputTestFile string
 }
 
 func configureUnittestCmd(app *kingpin.Application) {
@@ -31,8 +31,6 @@ func configureUnittestCmd(app *kingpin.Application) {
 		unittestCmd = app.Command("unittest", unittestHelp)
 	)
 
-	unittestCmd.Flag("config.file", "Unit-tested configuration file.").
-		Required().ExistingFileVar(&w.inputConfigFile)
 	unittestCmd.Flag("test.file", "Unit-test description file.").
 		Required().ExistingFileVar(&w.inputTestFile)
 
@@ -48,13 +46,13 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 		return err
 	}
 
-	graCfg, err := config.LoadFile(logger, w.inputConfigFile)
+	graCfg, err := config.LoadFile(logger, testCfg.ConfigFile)
 	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "error loading remote-adapter configuration file")
 		return err
 	}
 
-	fmt.Printf("# Testing %s\n", w.inputConfigFile)
+	fmt.Printf("# Testing %s\n", testCfg.ConfigFile)
 	hasDiffs := false
 	for _, testContext := range testCfg.Tests {
 		fmt.Printf("## %s\n", testContext.Name)
@@ -130,7 +128,8 @@ func makeSamples(input string) ([]*model.Sample, error) {
 }
 
 type unittestConfig struct {
-	Tests []*testConfig `yaml:"tests"`
+	ConfigFile string        `yaml:"config_file"`
+	Tests      []*testConfig `yaml:"tests"`
 }
 
 type testConfig struct {
@@ -149,6 +148,15 @@ func loadUnittestConfig(filePath string) (*unittestConfig, error) {
 		return nil, err
 	}
 
+	// Make config file path relative to test file
+	testFileDir := filepath.Dir(filePath)
+	configFilePath := filepath.Join(testFileDir, cfg.ConfigFile)
+	cfg.ConfigFile, err = filepath.Abs(configFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sanitize test definition
 	for _, test := range cfg.Tests {
 		output := strings.Split(test.Output, "\n")
 		sort.Strings(output)
