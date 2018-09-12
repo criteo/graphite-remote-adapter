@@ -117,7 +117,7 @@ func loadUnittestConfig(filePath string) (*unittestConfig, error) {
 	}
 	cfg, err := parseUnittestConfig(content)
 	if err != nil {
-
+		return nil, err
 	}
 
 	return cfg, nil
