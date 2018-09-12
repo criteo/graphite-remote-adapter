@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -92,6 +93,7 @@ func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) 
 			outputPaths = append(outputPaths, dt)
 		}
 	}
+	sort.Strings(outputPaths)
 	return strings.Join(outputPaths, "\n"), nil
 }
 
@@ -118,6 +120,12 @@ func loadUnittestConfig(filePath string) (*unittestConfig, error) {
 	cfg, err := parseUnittestConfig(content)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, test := range cfg.Tests {
+		output := strings.Split(test.Output, "\n")
+		sort.Strings(output)
+		test.Output = strings.Join(output, "\n")
 	}
 
 	return cfg, nil
