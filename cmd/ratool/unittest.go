@@ -56,7 +56,7 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	hasDiffs := false
 	for _, testContext := range testCfg.Tests {
 		fmt.Printf("## %s\n", testContext.Name)
-		output, err := makeOutput(testContext, graCfg)
+		output, err := makeSortedOutput(testContext, graCfg)
 		if err != nil {
 			level.Error(logger).Log("err", err, "msg", fmt.Sprintf("failed to generate output for test case %s", testContext.Name))
 			return err
@@ -93,7 +93,7 @@ func makeDiff(expected string, actual string) []string {
 	return nil
 }
 
-func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) {
+func makeSortedOutput(testContext *testConfig, graCfg *config.Config) (string, error) {
 	samples, err := makeSamples(testContext.Input)
 	if err != nil {
 		return "", err
@@ -112,7 +112,7 @@ func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) 
 
 func makeSamples(input string) ([]*model.Sample, error) {
 	reader := strings.NewReader(input)
-	return readSamplesFile(reader)
+	return readSamples(reader)
 }
 
 type unittestConfig struct {
