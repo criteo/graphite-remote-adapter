@@ -172,9 +172,8 @@ tests:
   - name: "Test label"
     input: |
         # Use the Prometheus exposition text format
-        toto{foo="bar", cluster="test"} 42
-        toto{foo="bar", cluster="canary"} 34
-        # You can even force a given timestamp
+        toto{foo="bar", cluster="test"} 42 1570802650000
+        toto{foo="bar", cluster="canary"} 34 1570802650000
         toto{foo="bazz", cluster="canary"} 18 1528819131000
     output: |
         toto.my.templated.path.test.foo.bar.lulu 42.000000 1570802650
@@ -189,6 +188,9 @@ tests:
 ```
 
 The path to `config_file` is relative to the test file.
+
+> *Note:* timestamps do not have the same unit for input and output. Input uses a regular unix timestamp in 
+> milliseconds, output is in seconds.
 
 To run it:
 

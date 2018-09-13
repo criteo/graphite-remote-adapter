@@ -79,32 +79,18 @@ func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 }
 
 func makeDiff(expected string, actual string) []string {
-	trimmedExpected := trimTimestamps(expected)
-	trimmedActual := trimTimestamps(actual)
-
+	expected = strings.Trim(expected, "\n")
+	actual = strings.Trim(actual, "\n")
 	dmp := diffmatchpatch.New()
-	diffResult := dmp.DiffMain(trimmedExpected, trimmedActual, false)
+	diffResult := dmp.DiffMain(expected, actual, false)
 	for _, r := range diffResult {
 		if r.Type != diffmatchpatch.DiffEqual {
 			// Generate patch-style diff
-			return diff.LineDiffAsLines(trimmedExpected, trimmedActual)
+			return diff.LineDiffAsLines(expected, actual)
 		}
 	}
 
 	return nil
-}
-
-func trimTimestamps(s string) string {
-	lines := strings.Split(s, "\n")
-	var trimmedLines []string
-	for _, line := range lines {
-		if len(line) > 0 {
-			lineComponents := strings.Split(line, " ")
-			lineWithoutTimestamp := lineComponents[0:2]
-			trimmedLines = append(trimmedLines, strings.Join(lineWithoutTimestamp, " "))
-		}
-	}
-	return strings.Join(trimmedLines, "\n")
 }
 
 func makeOutput(testContext *testConfig, graCfg *config.Config) (string, error) {
