@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- CVE-2018-3721
+
+### Added
+- ability to unit-test configuration using `ratool`
 
 ## [0.2.0] - 2018-08-31
 ### Added
