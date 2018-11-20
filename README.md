@@ -35,7 +35,7 @@ Graphite example:
 ./graphite-remote-adapter \
   --graphite.write.carbon-address=localhost:2001 \
   --graphite.read.url='http://guest:guest@localhost:8080' \
-  --read.timeout= 10s --write.timeout= 5s \
+  --read.timeout=10s --write.timeout=5s \
   --read.delay 3600s \
   --graphite.default-prefix prometheus.
 ```
