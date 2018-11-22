@@ -32,15 +32,18 @@ func ParseCommandLine() *Config {
 		StringVar(&cfg.Web.TelemetryPath)
 
 	a.Flag("write.timeout",
-		"Maximum duration before timing out remote write requests.").
+		"Maximum duration before timing out remote write requests. Default is 5m").
+		Default(DefaultConfig.Write.Timeout.String()).
 		DurationVar(&cfg.Write.Timeout)
 
 	a.Flag("read.timeout",
-		"Maximum duration before timing out remote read requests.").
+		"Maximum duration before timing out remote read requests. Default is 5m").
+		Default(DefaultConfig.Read.Timeout.String()).
 		DurationVar(&cfg.Read.Timeout)
 
 	a.Flag("read.delay",
-		"Duration ignoring recent samples from all remote read requests.").
+		"Duration ignoring recent samples from all remote read requests. Default is 1h").
+		Default(DefaultConfig.Read.Delay.String()).
 		DurationVar(&cfg.Read.Delay)
 
 	a.Flag("read.ignore-error",
