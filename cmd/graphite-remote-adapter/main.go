@@ -47,6 +47,18 @@ func reload(cliCfg *config.Config, logger log.Logger) (*config.Config, error) {
 		return nil, err
 	}
 
+	if cliCfg.Read.Delay == 0 {
+		cfg.Read.Delay = cliCfg.Read.Delay
+	}
+
+	if cliCfg.Read.Timeout == 0 {
+		cfg.Read.Timeout = cliCfg.Read.Timeout
+	}
+
+	if cliCfg.Write.Timeout == 0 {
+		cfg.Write.Timeout = cliCfg.Write.Timeout
+	}
+
 	return cfg, nil
 }
 
