@@ -1,9 +1,9 @@
-var regexpMetric = /([a-zA-Z_:][a-zA-Z0-9_:]*)(?:{(.*)})?\s+((?:\d*\.)?\d+(?:e\d+)?)(?:\s+(\d+))?/
-var regexpLabels = /([a-zA-Z_][a-zA-Z0-9_]*)\s?=\s?"([^"\\\\]*(?:\\.[^"\\\\]*)*)"/gm
+const regexpMetric = /([a-zA-Z_:][a-zA-Z0-9_:]*)(?:{(.*)})?\s+((?:\d*\.)?\d+(?:e\d+)?)(?:\s+(\d+))?/;
+const regexpLabels = /([a-zA-Z_][a-zA-Z0-9_]*)\s?=\s?"([^"\\\\]*(?:\\.[^"\\\\]*)*)"/gm;
 
 function parseLabels(metricName, rawLabelsStr) {
-    var labels = {"__name__": metricName};
-    if (rawLabelsStr != undefined) {
+    let labels = {"__name__": metricName};
+    if (rawLabelsStr !== undefined) {
         while (match = regexpLabels.exec(rawLabelsStr)) {
             labels[match[1]] = match[2];
         }
@@ -12,7 +12,7 @@ function parseLabels(metricName, rawLabelsStr) {
 }
 
 function parseSample(txtLine, defaultTimestampS) {
-    var match = regexpMetric.exec(txtLine);
+    let match = regexpMetric.exec(txtLine);
     if (match != null) {
         let labels = parseLabels(match[1], match[2]);
         let ts = parseInt(match[4]) || defaultTimestampS;
@@ -24,10 +24,10 @@ function parseSample(txtLine, defaultTimestampS) {
 function handleSimulationResult(result) {
     let jsonres = JSON.parse(result);
 
-    var html = "<dl>";
+    let html = "<dl>";
     $.each(jsonres, function (writerName, writerMsg) {
-        html += '<dt>' + writerName + '</dt>'
-        html += '<dd><pre class="alert alert-light">' + writerMsg + '</pre></dd>'
+        html += '<dt>' + writerName + '</dt>';
+        html += '<dd><pre class="alert alert-light">' + writerMsg + '</pre></dd>';
     });
     html += "</dl>";
     $("#outputs").html(html);
@@ -38,7 +38,7 @@ function simulWrite() {
     let lines = txt.split(/\n/);
     let nowS = $.now() / 1000;
 
-    var samples = []
+    let samples = [];
     $.each(lines, function (i, line) {
         let sample = parseSample($.trim(line), nowS);
         if (sample != null) {
