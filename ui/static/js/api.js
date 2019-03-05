@@ -1,11 +1,10 @@
-
 var regexpMetric = /([a-zA-Z_:][a-zA-Z0-9_:]*)(?:{(.*)})?\s+((?:\d*\.)?\d+(?:e\d+)?)(?:\s+(\d+))?/
 var regexpLabels = /([a-zA-Z_][a-zA-Z0-9_]*)\s?=\s?"([^"\\\\]*(?:\\.[^"\\\\]*)*)"/gm
 
 function parseLabels(metricName, rawLabelsStr) {
     var labels = {"__name__": metricName};
     if (rawLabelsStr != undefined) {
-        while(match = regexpLabels.exec(rawLabelsStr)){
+        while (match = regexpLabels.exec(rawLabelsStr)) {
             labels[match[1]] = match[2];
         }
     }
@@ -26,7 +25,7 @@ function handleSimulationResult(result) {
     let jsonres = JSON.parse(result);
 
     var html = "<dl>";
-    $.each(jsonres, function(writerName, writerMsg) {
+    $.each(jsonres, function (writerName, writerMsg) {
         html += '<dt>' + writerName + '</dt>'
         html += '<dd><pre class="alert alert-light">' + writerMsg + '</pre></dd>'
     });
@@ -40,7 +39,7 @@ function simulWrite() {
     let nowS = $.now() / 1000;
 
     var samples = []
-    $.each(lines, function(i, line) {
+    $.each(lines, function (i, line) {
         let sample = parseSample($.trim(line), nowS);
         if (sample != null) {
             samples.push(sample);
