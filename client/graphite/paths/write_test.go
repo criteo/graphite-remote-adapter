@@ -45,7 +45,10 @@ write:
     continue: false
   - match:
       owner: team-Z
-    continue: false`
+    continue: false
+  - match_re:
+      foo: .+
+    exclude_labels: true`
 
 	testConfig = loadTestConfig(testConfigStr)
 )
@@ -153,6 +156,18 @@ func TestSkipedTemplatedPathsFromMetric(t *testing.T) {
 	t.Log(testConfig.Write.Rules[2])
 	actual, err := pathsFromMetric(skipedMetric, FormatCarbon, "", testConfig.Write.Rules, testConfig.Write.TemplateData)
 	require.Empty(t, actual)
+	require.Empty(t, err)
+}
+
+func TestExcludeLabelFromMetric(t *testing.T) {
+	metricWithFooLabel := model.Metric{
+		model.MetricNameLabel: "test:metric",
+		"foo": "bar",
+	}
+	expected := make([]string, 0)
+	expected = append(expected, "prefix.test:metric")
+	actual, err := pathsFromMetric(metricWithFooLabel, FormatCarbon, "prefix.", testConfig.Write.Rules, testConfig.Write.TemplateData)
+	require.Equal(t, expected, actual)
 	require.Empty(t, err)
 }
 

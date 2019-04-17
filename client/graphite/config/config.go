@@ -133,10 +133,11 @@ type LabelSetRE map[model.LabelName]Regexp
 // Rule defines a templating rule that customize graphite path using the
 // Tmpl if a metric matching the labels exists.
 type Rule struct {
-	Tmpl     Template   `yaml:"template,omitempty" json:"template,omitempty"`
-	Match    LabelSet   `yaml:"match,omitempty" json:"match,omitempty"`
-	MatchRE  LabelSetRE `yaml:"match_re,omitempty" json:"match_re,omitempty"`
-	Continue bool       `yaml:"continue,omitempty" json:"continue,omitempty"`
+	Tmpl          Template   `yaml:"template,omitempty" json:"template,omitempty"`
+	Match         LabelSet   `yaml:"match,omitempty" json:"match,omitempty"`
+	MatchRE       LabelSetRE `yaml:"match_re,omitempty" json:"match_re,omitempty"`
+	Continue      bool       `yaml:"continue,omitempty" json:"continue,omitempty"`
+	ExcludeLabels bool       `yaml:"exclude_labels,omitempty" json:"exclude_labels,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline" json:"-"`

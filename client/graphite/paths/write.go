@@ -41,6 +41,7 @@ func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*conf
 			return cachedPaths.([]string), nil
 		}
 	}
+	m = removeExcludedLabels(m, rules)
 	paths, stop, err := templatedPaths(m, rules, templateData)
 	// if it doesn't match any rule, use default path
 	if !stop {
@@ -52,11 +53,29 @@ func pathsFromMetric(m model.Metric, format Format, prefix string, rules []*conf
 	return paths, err
 }
 
+func removeExcludedLabels(metric model.Metric, rules []*config.Rule) model.Metric {
+	newMetric := metric.Clone()
+	for _, rule := range rules {
+		if rule.ExcludeLabels && match(newMetric, rule.Match, rule.MatchRE) {
+			for key := range rule.Match {
+				delete(newMetric, key)
+			}
+			for key := range rule.MatchRE {
+				delete(newMetric, key)
+			}
+		}
+	}
+	return newMetric
+}
+
 func templatedPaths(m model.Metric, rules []*config.Rule, templateData map[string]interface{}) ([]string, bool, error) {
 	var paths []string
 	var stop = false
 	var err error
 	for _, rule := range rules {
+		if rule.ExcludeLabels {
+			continue
+		}
 		match := match(m, rule.Match, rule.MatchRE)
 		if !match {
 			continue
