@@ -17,33 +17,41 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 )
 
 const namespace = "remote_adapter"
+const apiSubsystem = "api"
 
 var (
-	requestCounter = prometheus.NewCounterVec(
+	requestCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "api_requests_total",
-			Help: "A counter for requests to the wrapped handler.",
+			Namespace: namespace,
+			Subsystem: apiSubsystem,
+			Name:      "requests_total",
+			Help:      "A counter for requests to the wrapped handler.",
 		},
 		[]string{"handler", "code", "method"},
 	)
-	requestDuration = prometheus.NewHistogramVec(
+	requestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "request_duration_seconds",
-			Help:    "A histogram of latencies for requests.",
-			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
+			Namespace: namespace,
+			Subsystem: apiSubsystem,
+			Name:      "request_duration_seconds",
+			Help:      "A histogram of latencies for requests.",
+			Buckets:   []float64{.25, .5, 1, 2.5, 5, 10},
 		},
 		[]string{"handler", "method"},
 	)
-	responseSize = prometheus.NewHistogramVec(
+	responseSize = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "response_size_bytes",
-			Help:    "A histogram of response sizes for requests.",
-			Buckets: []float64{200, 500, 900, 1500},
+			Namespace: namespace,
+			Subsystem: apiSubsystem,
+			Name:      "response_size_bytes",
+			Help:      "A histogram of response sizes for requests.",
+			Buckets:   []float64{200, 500, 900, 1500},
 		},
 		[]string{"handler"},
 	)
