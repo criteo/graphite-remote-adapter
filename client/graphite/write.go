@@ -78,7 +78,7 @@ func (c *Client) prepareWrite(samples model.Samples, r *http.Request) ([]*bytes.
 	for _, s := range samples {
 		datapoints, err := gpaths.ToDatapoints(s, c.format, graphitePrefix, c.cfg.Write.Rules, c.cfg.Write.TemplateData)
 		if err != nil {
-			level.Warn(c.logger).Log("sample", s, "err", err)
+			level.Debug(c.logger).Log("sample", s, "err", err)
 			c.ignoredSamples.Inc()
 			continue
 		}
