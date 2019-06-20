@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/criteo/graphite-remote-adapter/utils"
-
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -66,7 +64,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reader := h.readers[0]
-	prefix := utils.StoragePrefixFromRequest(r)
+	prefix := h.cfg.Graphite.StoragePrefixFromRequest(r)
 
 	var resp *prompb.ReadResponse
 	resp, err = reader.Read(&req, r)
@@ -74,7 +72,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 		level.Warn(h.logger).Log(
 			"query", req, "storage", reader.Name(),
 			"err", err, "msg", "Error executing query")
-		failedReads.WithLabelValues(prefix, reader.Name()).Inc()
+		failedReads.WithLabelValues(prefix, reader.Target()).Inc()
 		if h.cfg.Read.IgnoreError == false {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -88,7 +86,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	} else {
-		readSamples.WithLabelValues(prefix, reader.Name()).Add(float64(resp.Size()))
+		readSamples.WithLabelValues(prefix, reader.Target()).Add(float64(resp.Size()))
 	}
 
 	data, err := proto.Marshal(resp)

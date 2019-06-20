@@ -23,6 +23,7 @@ import (
 // Client define a remote storage.
 type Client interface {
 	Name() string
+	Target() string
 	String() string
 	Shutdown()
 }

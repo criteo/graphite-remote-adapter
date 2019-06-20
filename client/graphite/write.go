@@ -67,11 +67,7 @@ func (c *Client) prepareWrite(samples model.Samples, r *http.Request) ([]*bytes.
 	level.Debug(c.logger).Log(
 		"num_samples", len(samples), "storage", c.Name(), "msg", "Remote write")
 
-	graphitePrefix, err := c.getGraphitePrefix(r)
-	if err != nil {
-		level.Warn(c.logger).Log("prefix", graphitePrefix, "err", err)
-		return nil, err
-	}
+	graphitePrefix := c.cfg.StoragePrefixFromRequest(r)
 
 	currentBuf := bytes.NewBufferString("")
 	bytesBuffers := []*bytes.Buffer{currentBuf}
