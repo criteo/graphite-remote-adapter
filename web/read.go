@@ -5,10 +5,33 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/criteo/graphite-remote-adapter/utils"
+
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/prometheus/prompb"
+)
+
+var (
+	readSamples = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "read_samples_total",
+			Help:      "Total number of samples read from remote storage.",
+		},
+		[]string{"prefix", "remote"},
+	)
+	failedReads = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "failed_reads_total",
+			Help:      "Total number of reads which failed on the remote storage.",
+		},
+		[]string{"prefix", "remote"},
+	)
 )
 
 func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +66,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reader := h.readers[0]
+	prefix := utils.StoragePrefixFromRequest(r)
 
 	var resp *prompb.ReadResponse
 	resp, err = reader.Read(&req, r)
@@ -50,17 +74,21 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
 		level.Warn(h.logger).Log(
 			"query", req, "storage", reader.Name(),
 			"err", err, "msg", "Error executing query")
+		failedReads.WithLabelValues(prefix, reader.Name()).Inc()
 		if h.cfg.Read.IgnoreError == false {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
+
 	if resp == nil {
 		resp = &prompb.ReadResponse{
 			Results: []*prompb.QueryResult{
 				{Timeseries: make([]*prompb.TimeSeries, 0, 0)},
 			},
 		}
+	} else {
+		readSamples.WithLabelValues(prefix, reader.Name()).Add(float64(resp.Size()))
 	}
 
 	data, err := proto.Marshal(resp)

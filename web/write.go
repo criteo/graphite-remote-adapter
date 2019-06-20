@@ -7,56 +7,53 @@ import (
 	"sync"
 	"time"
 
+	"github.com/criteo/graphite-remote-adapter/utils"
+
 	"github.com/criteo/graphite-remote-adapter/client"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
 
 var (
-	receivedSamples = prometheus.NewCounter(
+	receivedSamples = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "received_samples_total",
 			Help:      "Total number of received samples.",
 		},
+		[]string{"prefix"},
 	)
-	sentSamples = prometheus.NewCounterVec(
+	sentSamples = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "sent_samples_total",
 			Help:      "Total number of processed samples sent to remote storage.",
 		},
-		[]string{"remote"},
+		[]string{"prefix", "remote"},
 	)
-	failedSamples = prometheus.NewCounterVec(
+	failedSamples = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "failed_samples_total",
 			Help:      "Total number of processed samples which failed on send to remote storage.",
 		},
-		[]string{"remote"},
+		[]string{"prefix", "remote"},
 	)
-	sentBatchDuration = prometheus.NewHistogramVec(
+	sentBatchDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
 			Name:      "sent_batch_duration_seconds",
 			Help:      "Duration of sample batch send calls to the remote storage.",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{"remote"},
+		[]string{"prefix", "remote"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(receivedSamples)
-	prometheus.MustRegister(sentSamples)
-	prometheus.MustRegister(failedSamples)
-	prometheus.MustRegister(sentBatchDuration)
-}
 
 func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 	h.lock.RLock()
@@ -83,7 +80,9 @@ func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receivedSamples.Add(float64(len(samples)))
+	prefix := utils.StoragePrefixFromRequest(r)
+
+	receivedSamples.WithLabelValues(prefix).Add(float64(len(samples)))
 
 	// Execute write on each writer clients.
 	var wg sync.WaitGroup
@@ -93,8 +92,10 @@ func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 		go func(client client.Writer) {
 			msgBytes, err := h.instrumentedWriteSamples(client, samples, r, dryRun)
 			if err != nil {
+				failedSamples.WithLabelValues(prefix, client.Name()).Add(float64(len(samples)))
 				writeResponse[client.Name()] = err.Error()
 			} else {
+				sentSamples.WithLabelValues(prefix, client.Name()).Add(float64(len(samples)))
 				writeResponse[client.Name()] = string(msgBytes)
 			}
 			wg.Done()
@@ -168,10 +169,8 @@ func (h *Handler) instrumentedWriteSamples(
 		level.Warn(h.logger).Log(
 			"num_samples", len(samples), "storage", w.Name(),
 			"err", err, "msg", "Error sending samples to remote storage")
-		failedSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
 		return nil, err
 	}
-	sentSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
 	sentBatchDuration.WithLabelValues(w.Name()).Observe(duration)
 	return msgBytes, nil
 }
