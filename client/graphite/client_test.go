@@ -39,7 +39,7 @@ func TestGetGraphitePrefix(t *testing.T) {
 	fakeRequest, _ := http.NewRequest("POST", "http://fakeHost:6666", nil)
 	expectedPrefix := testClient.cfg.DefaultPrefix
 
-	actualPrefix, _ := testClient.getGraphitePrefix(fakeRequest)
+	actualPrefix := testClient.cfg.StoragePrefixFromRequest(fakeRequest)
 	if !reflect.DeepEqual(expectedPrefix, actualPrefix) {
 		t.Errorf("Expected %s, got %s", expectedPrefix, actualPrefix)
 	}
@@ -49,7 +49,7 @@ func TestGetCustomGraphitePrefix(t *testing.T) {
 	fakeRequest, _ := http.NewRequest("POST", "http://fakeHost:6666?graphite.default-prefix=foo.bar.custom.", nil)
 	expectedPrefix := "foo.bar.custom."
 
-	actualPrefix, _ := testClient.getGraphitePrefix(fakeRequest)
+	actualPrefix := testClient.cfg.StoragePrefixFromRequest(fakeRequest)
 	if !reflect.DeepEqual(expectedPrefix, actualPrefix) {
 		t.Errorf("Expected %s, got %s", expectedPrefix, actualPrefix)
 	}

@@ -16,8 +16,6 @@ package graphite
 
 import (
 	"net"
-	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -110,21 +108,15 @@ func (c *Client) Name() string {
 	return "graphite"
 }
 
+func (c *Client) Target() string {
+	if c.carbonCon == nil {
+		return "unknown"
+	}
+	return c.carbonCon.RemoteAddr().String()
+}
+
 // String implements the client.Client interface.
 func (c *Client) String() string {
 	// TODO: add more stuff here.
 	return c.cfg.String()
-}
-
-// Get graphite prefix
-func (c *Client) getGraphitePrefix(r *http.Request) (string, error) {
-	urlValues, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		return "", err
-	}
-
-	if graphitePrefix, ok := urlValues["graphite.default-prefix"]; ok {
-		return graphitePrefix[0], nil
-	}
-	return c.cfg.DefaultPrefix, nil
 }

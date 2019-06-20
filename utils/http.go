@@ -61,7 +61,3 @@ func FetchURL(ctx context.Context, logger log.Logger, u *url.URL) ([]byte, error
 
 	return body, nil
 }
-
-func StoragePrefixFromRequest(r *http.Request) string {
-	return r.URL.Query().Get("graphite.default-prefix")
-}

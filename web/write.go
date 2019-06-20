@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/criteo/graphite-remote-adapter/utils"
-
 	"github.com/criteo/graphite-remote-adapter/client"
 	"github.com/go-kit/kit/log/level"
 	"github.com/gogo/protobuf/proto"
@@ -51,7 +49,7 @@ var (
 			Help:      "Duration of sample batch send calls to the remote storage.",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{"prefix", "remote"},
+		[]string{"remote"},
 	)
 )
 
@@ -80,7 +78,7 @@ func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefix := utils.StoragePrefixFromRequest(r)
+	prefix := h.cfg.Graphite.StoragePrefixFromRequest(r)
 
 	receivedSamples.WithLabelValues(prefix).Add(float64(len(samples)))
 
@@ -92,10 +90,10 @@ func (h *Handler) write(w http.ResponseWriter, r *http.Request) {
 		go func(client client.Writer) {
 			msgBytes, err := h.instrumentedWriteSamples(client, samples, r, dryRun)
 			if err != nil {
-				failedSamples.WithLabelValues(prefix, client.Name()).Add(float64(len(samples)))
+				failedSamples.WithLabelValues(prefix, client.Target()).Add(float64(len(samples)))
 				writeResponse[client.Name()] = err.Error()
 			} else {
-				sentSamples.WithLabelValues(prefix, client.Name()).Add(float64(len(samples)))
+				sentSamples.WithLabelValues(prefix, client.Target()).Add(float64(len(samples)))
 				writeResponse[client.Name()] = string(msgBytes)
 			}
 			wg.Done()
@@ -171,6 +169,6 @@ func (h *Handler) instrumentedWriteSamples(
 			"err", err, "msg", "Error sending samples to remote storage")
 		return nil, err
 	}
-	sentBatchDuration.WithLabelValues(w.Name()).Observe(duration)
+	sentBatchDuration.WithLabelValues(w.Target()).Observe(duration)
 	return msgBytes, nil
 }

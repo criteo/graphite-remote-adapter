@@ -353,11 +353,7 @@ func (c *Client) Read(req *prompb.ReadRequest, r *http.Request) (*prompb.ReadRes
 	ctx, cancel := context.WithTimeout(context.Background(), c.readTimeout)
 	defer cancel()
 
-	graphitePrefix, err := c.getGraphitePrefix(r)
-	if err != nil {
-		level.Warn(c.logger).Log("prefix", graphitePrefix, "err", err)
-		return nil, err
-	}
+	graphitePrefix := c.cfg.StoragePrefixFromRequest(r)
 
 	resp := &prompb.ReadResponse{}
 	for _, query := range req.Queries {

@@ -15,6 +15,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"text/template"
 	"time"
@@ -76,6 +77,14 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	return utils.CheckOverflow(c.XXX, "graphite config")
+}
+
+func (c *Config) StoragePrefixFromRequest(r *http.Request) string {
+	p := r.URL.Query().Get("graphite.default-prefix")
+	if p == "" {
+		p = c.DefaultPrefix
+	}
+	return p
 }
 
 // ReadConfig is the read graphite configuration.
