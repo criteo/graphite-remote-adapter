@@ -79,6 +79,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return utils.CheckOverflow(c.XXX, "graphite config")
 }
 
+// StoragePrefixFromRequest returns the prefix from either the config or the request's Query
 func (c *Config) StoragePrefixFromRequest(r *http.Request) string {
 	p := r.URL.Query().Get("graphite.default-prefix")
 	if p == "" {

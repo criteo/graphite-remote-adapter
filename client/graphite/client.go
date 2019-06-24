@@ -108,6 +108,7 @@ func (c *Client) Name() string {
 	return "graphite"
 }
 
+// Target respond with a more low level representation of the client's remote
 func (c *Client) Target() string {
 	if c.carbonCon == nil {
 		return "unknown"
