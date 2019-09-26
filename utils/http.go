@@ -14,6 +14,7 @@
 package utils
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -54,9 +55,13 @@ func FetchURL(ctx context.Context, logger log.Logger, u *url.URL) ([]byte, error
 	defer hresp.Body.Close()
 
 	body, err := ioutil.ReadAll(hresp.Body)
-	level.Debug(logger).Log("len(body)", len(body), "err", err, "msg", "Fetching URL")
+	level.Debug(logger).Log("len(body)", len(body), "err", err, "msg", "Reading HTTP response body")
 	if err != nil {
 		return nil, err
+	}
+
+	if hresp.StatusCode >= 400 {
+		return body, errors.New(hresp.Status)
 	}
 
 	return body, nil
