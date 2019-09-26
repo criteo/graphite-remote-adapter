@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/criteo/graphite-remote-adapter/client/graphite/paths"
+	"github.com/criteo/graphite-remote-adapter/utils"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/model"
 	plabels "github.com/prometheus/prometheus/pkg/labels"
@@ -63,15 +64,16 @@ func (c *Client) queryToTargets(ctx context.Context, query *prompb.Query, graphi
 	body, err := fetchURL(ctx, c.logger, expandURL)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", expandURL, "err", err, "msg", "Error fetching URL")
+			"url", expandURL, "body", utils.TruncateString(string(body), 140)+"...",
+			"err", err, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &expandResponse)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", expandURL, "err", err,
-			"msg", "Error parsing expand endpoint response body")
+			"url", expandURL, "body", utils.TruncateString(string(body), 140)+"...",
+			"err", err, "msg", "Error parsing expand endpoint response body")
 		return nil, err
 	}
 
@@ -168,15 +170,16 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 	body, err := fetchURL(ctx, c.logger, renderURL)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", renderURL, "err", err, "ctx", ctx, "msg", "Error fetching URL")
+			"url", renderURL, "body", utils.TruncateString(string(body), 140)+"...",
+			"err", err, "ctx", ctx, "msg", "Error fetching URL")
 		return nil, err
 	}
 
 	err = json.Unmarshal(body, &renderResponses)
 	if err != nil {
 		level.Warn(c.logger).Log(
-			"url", renderURL, "err", err,
-			"msg", "Error parsing render endpoint response body")
+			"url", renderURL, "body", utils.TruncateString(string(body), 140)+"...",
+			"err", err, "msg", "Error parsing render endpoint response body")
 		return nil, err
 	}
 
