@@ -25,7 +25,9 @@ ifdef DEBUG
 endif
 
 
-all: format build test
+all: format build test mod-tidy
+
+travis: style test clean assets mod-tidy
 
 test:
 	@echo ">> running tests"
@@ -35,7 +37,7 @@ style:
 	@echo ">> checking code style"
 	@! gofmt -d $(shell find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
 	@echo ">> running golint"
-	@$(GO) get github.com/golang/lint/golint
+	@$(GO) get golang.org/x/lint/golint
 	@golint -set_exit_status $(shell go list $(pkgs) | grep -v 'github.com/criteo/graphite-remote-adapter/ui')
 
 format:
@@ -62,7 +64,7 @@ docker:
 
 assets:
 	@echo ">> writing assets"
-	-@$(GO) get -u github.com/jteeuwen/go-bindata/...
+	-@$(GO) get github.com/go-bindata/go-bindata/...
 	# Using "-mode 420" and "-modtime 1" to make assets make target deterministic.
 	# It sets all file permissions and time stamps to 420 and 1
 	@go-bindata $(bindata_flags) -mode 420 -modtime 1 -pkg ui -o ui/bindata.go -prefix 'ui/' ui/templates/... ui/static/...
@@ -74,7 +76,11 @@ promu:
 	$(GO) get -u github.com/prometheus/promu
 
 clean:
-	rm ui/bindata.go
+	[ -f ui/bindata.go ] && rm ui/bindata.go
+
+mod-tidy:
+	@echo ">> tidy go mods"
+	@$(GO) mod tidy
 
 proto:
 

@@ -14,8 +14,8 @@ const (
 )
 
 var (
-	logLevel promlog.AllowedLevel
-	logger   log.Logger
+	defaultLogLevel promlog.AllowedLevel
+	logger          log.Logger
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 
 	// Add logLevel flag
 	app.Flag(promlogflag.LevelFlagName, promlogflag.LevelFlagHelp).
-		Default("info").SetValue(&logLevel)
+		Default("info").SetValue(&defaultLogLevel)
 
 	configureMockWriteCmd(app)
 	configureUnittestCmd(app)
