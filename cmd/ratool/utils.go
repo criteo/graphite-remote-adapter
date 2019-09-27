@@ -12,7 +12,7 @@ import (
 
 func setupLogger() {
 	if logger == nil {
-		logger = promlog.New(logLevel)
+		logger = promlog.New(&promlog.Config{Level: &defaultLogLevel})
 	}
 }
 

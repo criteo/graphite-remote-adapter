@@ -32,9 +32,9 @@ var (
 		&prompb.Label{Name: model.MetricNameLabel, Value: "test"},
 		&prompb.Label{Name: "owner", Value: "team-X"},
 	}
-	expectedSamples = []*prompb.Sample{
-		&prompb.Sample{Value: float64(18), Timestamp: int64(0)},
-		&prompb.Sample{Value: float64(42), Timestamp: int64(300000)},
+	expectedSamples = []prompb.Sample{
+		prompb.Sample{Value: float64(18), Timestamp: int64(0)},
+		prompb.Sample{Value: float64(42), Timestamp: int64(300000)},
 	}
 )
 

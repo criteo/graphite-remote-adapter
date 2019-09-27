@@ -203,14 +203,14 @@ func (c *Client) targetToTimeseries(ctx context.Context, target string, from str
 	return ret, nil
 }
 
-func samplesFromDatapoints(datapoints []*Datapoint, maxPointDelta time.Duration) []*prompb.Sample {
-	samples := []*prompb.Sample{}
+func samplesFromDatapoints(datapoints []*Datapoint, maxPointDelta time.Duration) []prompb.Sample {
+	samples := []prompb.Sample{}
 	for i, datapoint := range datapoints {
 		timestampMs := datapoint.Timestamp * 1000
 		if datapoint.Value == nil {
 			continue
 		}
-		samples = append(samples, &prompb.Sample{
+		samples = append(samples, prompb.Sample{
 			Value:     *datapoint.Value,
 			Timestamp: timestampMs})
 
@@ -229,7 +229,7 @@ func samplesFromDatapoints(datapoints []*Datapoint, maxPointDelta time.Duration)
 			for j := int64(1); j < deltaSecond/intervalSecond; j++ {
 				timestamp := datapoint.Timestamp + j*intervalSecond
 				value := *datapoint.Value + float64(timestamp-datapoint.Timestamp)*variation
-				samples = append(samples, &prompb.Sample{
+				samples = append(samples, prompb.Sample{
 					Value:     value,
 					Timestamp: timestamp * 1000})
 			}

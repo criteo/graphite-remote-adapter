@@ -66,7 +66,7 @@ func toWriteRequest(samples []*model.Sample) *prompb.WriteRequest {
 	for _, s := range samples {
 		ts := prompb.TimeSeries{
 			Labels: metricToLabelProtos(s.Metric),
-			Samples: []*prompb.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     float64(s.Value),
 					Timestamp: int64(s.Timestamp),
