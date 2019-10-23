@@ -113,12 +113,17 @@ func (c *Client) Write(samples model.Samples, r *http.Request, dryRun bool) ([]b
 	c.carbonConLock.Lock()
 	defer c.carbonConLock.Unlock()
 
+	select {
+	case <-r.Context().Done():
+		return []byte("context cancelled."), fmt.Errorf("request context cancelled")
+	default:
+	}
+
 	for _, buf := range bytesBuffers {
 		conn, err := c.connectToCarbon()
 		if err != nil {
 			return nil, err
 		}
-
 		_, err = conn.Write(buf.Bytes())
 		if err != nil {
 			c.disconnectFromCarbon()
