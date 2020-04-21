@@ -65,7 +65,7 @@ func reload(cliCfg *config.Config, logger log.Logger) (*config.Config, error) {
 func main() {
 	cliCfg := config.ParseCommandLine()
 
-	logger := promlog.New(&promlog.Config{Level: &cliCfg.LogLevel})
+	logger := promlog.New(&promlog.Config{Level: &cliCfg.LogLevel, Format: &promlog.AllowedFormat{}})
 	level.Info(logger).Log("msg", "Starting graphite-remote-adapter", "version", version.Info())
 	level.Info(logger).Log("build_context", version.BuildContext())
 
