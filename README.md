@@ -10,7 +10,7 @@ It is based on [remote_storage_adapter](https://github.com/prometheus/prometheus
 You can either `go get` it:
 
 ```
-$ go get github.com/criteo/graphite-remote-adapter/...
+$ go get -d github.com/criteo/graphite-remote-adapter/...
 $ cd $GOPATH/src/github.com/criteo/graphite-remote-adapter
 $ make build
 $ ./graphite-remote-adapter --graphite.read.url='http://localhost:8080' --graphite.write.carbon-address=localhost:2003
