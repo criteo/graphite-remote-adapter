@@ -39,7 +39,6 @@ func configureUnittestCmd(app *kingpin.Application) {
 
 func (w *unittestCmd) Unittest(ctx *kingpin.ParseContext) error {
 	setupLogger()
-
 	testCfg, err := loadUnittestConfig(w.inputTestFile)
 	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "error loading unit-test description file")
@@ -101,7 +100,7 @@ func makeSortedOutput(testContext *testConfig, graCfg *config.Config) (string, e
 
 	var outputPaths []string
 	for _, s := range samples {
-		datapoints, _ := paths.ToDatapoints(s, paths.FormatCarbon, "", graCfg.Graphite.Write.Rules, graCfg.Graphite.Write.TemplateData)
+		datapoints, _ := paths.ToDatapoints(s, paths.Format{Type: paths.FormatCarbon}, "", graCfg.Graphite.Write.Rules, graCfg.Graphite.Write.TemplateData)
 		for _, dt := range datapoints {
 			outputPaths = append(outputPaths, dt)
 		}

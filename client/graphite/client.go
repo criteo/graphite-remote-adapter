@@ -16,6 +16,7 @@ package graphite
 
 import (
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,13 +68,15 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 	}
 
 	// Which format are we using to write points?
-	format := paths.FormatCarbon
-	if cfg.Graphite.EnableTags {
+	format := paths.Format{Type: paths.FormatCarbon}
+	if cfg.Graphite.EnableTags || cfg.Graphite.FilteredTags != "" {
 		if cfg.Graphite.UseOpenMetricsFormat {
-			format = paths.FormatCarbonOpenMetrics
+			format = paths.Format{Type: paths.FormatCarbonOpenMetrics}
 		} else {
-			format = paths.FormatCarbonTags
+			format = paths.Format{Type: paths.FormatCarbonTags}
 		}
+
+		format.FilteredTags = strings.Split(cfg.Graphite.FilteredTags, ",")
 	}
 
 	return &Client{

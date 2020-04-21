@@ -41,4 +41,8 @@ func AddCommandLine(app *kingpin.Application, cfg *Config) {
 	app.Flag("graphite.enable-tags",
 		"Use Graphite tags.").
 		BoolVar(&cfg.EnableTags)
+
+	app.Flag("graphite.filtered-tags",
+		"Use Graphite tags only for given tag names; Multiple names must be separated by a comma. Eg: app_name,job_name").
+		StringVar(&cfg.FilteredTags)
 }
