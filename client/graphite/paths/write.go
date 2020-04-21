@@ -87,6 +87,8 @@ func defaultPath(m model.Metric, format Format, prefix string) string {
 	var buffer bytes.Buffer
 	var lbuffer bytes.Buffer
 
+	formatedTags := []string{}
+
 	buffer.WriteString(prefix)
 	buffer.WriteString(graphite_tmpl.Escape(string(m[model.MetricNameLabel])))
 
@@ -106,15 +108,32 @@ func defaultPath(m model.Metric, format Format, prefix string) string {
 		k := string(l)
 		v := graphite_tmpl.Escape(string(m[l]))
 
-		if format == FormatCarbonOpenMetrics {
-			// https://github.com/RichiH/OpenMetrics/blob/master/metric_exposition_format.md
+		// When using carbon tags only for a set of known labels, make sure to filter those
+		// before creating the tag
+		WriteTag := true
+
+		if format.Type == FormatCarbonTags && len(format.FilteredTags) > 0 {
+			for _, filteredTagName := range format.FilteredTags {
+				if filteredTagName == k {
+					WriteTag = false
+					break
+				}
+			}
+		}
+
+		if format.Type == FormatCarbonOpenMetrics {
+			// https://prometheus.io/docs/instrumenting/exposition_formats/
 			if !first {
 				lbuffer.WriteString(",")
 			}
 			lbuffer.WriteString(fmt.Sprintf("%s=\"%s\"", k, v))
-		} else if format == FormatCarbonTags {
+		} else if format.Type == FormatCarbonTags && len(format.FilteredTags) == 0 {
 			// See http://graphite.readthedocs.io/en/latest/tags.html
 			lbuffer.WriteString(fmt.Sprintf(";%s=%s", k, v))
+		} else if format.Type == FormatCarbonTags && WriteTag == false {
+			// Formated filtered tags: stack in a list, will be unstacked later.
+			formatedTags = append(formatedTags, fmt.Sprintf(";%s=%s", k, v))
+			// else if format.Type == FormatCarbonTags && WriteTag == true, get to default case:
 		} else {
 			// For each label, in order, add ".<label>.<value>".
 			// Since we use '.' instead of '=' to separate label and values
@@ -125,8 +144,13 @@ func defaultPath(m model.Metric, format Format, prefix string) string {
 		first = false
 	}
 
+	// Added previously formated tags, if any
+	for _, formatedTag := range formatedTags {
+		lbuffer.WriteString(formatedTag)
+	}
+
 	if lbuffer.Len() > 0 {
-		if format == FormatCarbonOpenMetrics {
+		if format.Type == FormatCarbonOpenMetrics {
 			buffer.WriteRune('{')
 			buffer.Write(lbuffer.Bytes())
 			buffer.WriteRune('}')
