@@ -10,26 +10,24 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/gogo/protobuf v1.3.0
+	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/golang/snappy v0.0.1
-	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/grpc-ecosystem/grpc-gateway v1.11.2 // indirect
 	github.com/imdario/mergo v0.3.7
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
-	github.com/prometheus/common v0.7.0
-	github.com/prometheus/procfs v0.0.5 // indirect
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.5.1
+	github.com/prometheus/common v0.9.1
+	github.com/prometheus/procfs v0.0.11 // indirect
 	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/sergi/go-diff v1.0.0
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/net v0.0.0-20191003171128-d98b1b443823
-	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
+	golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c // indirect
 	google.golang.org/grpc v1.24.0 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.8
 )
