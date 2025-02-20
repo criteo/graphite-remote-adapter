@@ -115,8 +115,8 @@ func (c *Client) Write(samples model.Samples, r *http.Request, dryRun bool) ([]b
 
 	select {
 	case <-r.Context().Done():
-		return []byte("context cancelled."), fmt.Errorf("request context cancelled while using socket %s <=> %s",
-			c.carbonCon.LocalAddr().String(), c.carbonCon.RemoteAddr().String())
+		return []byte("context cancelled."), fmt.Errorf("request context cancelled while using socket %v <=> %v",
+			c.carbonCon.LocalAddr(), c.carbonCon.RemoteAddr())
 	default:
 	}
 
