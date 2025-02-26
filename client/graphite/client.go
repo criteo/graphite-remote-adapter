@@ -76,7 +76,9 @@ func NewClient(cfg *config.Config, logger log.Logger) *Client {
 			format = paths.Format{Type: paths.FormatCarbonTags}
 		}
 
-		format.FilteredTags = strings.Split(cfg.Graphite.FilteredTags, ",")
+		if cfg.Graphite.FilteredTags != "" {
+			format.FilteredTags = strings.Split(cfg.Graphite.FilteredTags, ",")
+		}
 	}
 
 	return &Client{
