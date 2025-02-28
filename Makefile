@@ -80,7 +80,17 @@ promu:
 go-build:
 	@GOOS=linux \
 	GOARCH=amd64 \
-	$(GO) build -o .build/linux-amd64/graphite-remote-adapter -buildvcs=false -a -tags netgo github.com/criteo/graphite-remote-adapter/cmd/graphite-remote-adapter
+	$(GO) build -o .build/linux-amd64/graphite-remote-adapter \
+	-buildvcs=false -ldflags="-X 'github.com/prometheus/common/version.Version=$(shell cat VERSION)' \
+	-X 'github.com/prometheus/common/version.Revision=$(shell git rev-parse HEAD)' \
+	-X 'github.com/prometheus/common/version.Branch=master' \
+	-X 'github.com/prometheus/common/version.BuildUser=github' \
+	-X 'github.com/prometheus/common/version.BuildDate=$(shell date +"%Y%m%d-%H:%M:%S")' \
+	-extldflags=-static" \
+	-a -tags netgo github.com/criteo/graphite-remote-adapter/cmd/graphite-remote-adapter
+
+test-version:
+	.build/linux-amd64/graphite-remote-adapter --version
 
 package:
 	@mkdir .tarballs
