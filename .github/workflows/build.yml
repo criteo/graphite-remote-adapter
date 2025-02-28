@@ -36,9 +36,13 @@ jobs:
         make clean assets
         make mod-tidy
 
-    - name: Build
+    - name: Build Graphite Remote Adapter
       run: |
-        make go-build
+        make go-build-graphite-remote-adapter
+
+    - name: Build ratool
+      run: |
+        make go-build-ratool
     
     - name: Package
       run: |
