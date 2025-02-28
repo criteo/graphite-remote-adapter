@@ -77,7 +77,7 @@ promu:
 	$(GO) get github.com/prometheus/promu
 	$(GO) install github.com/prometheus/promu
 
-go-build:
+go-build-graphite-remote-adapter:
 	@GOOS=linux \
 	GOARCH=amd64 \
 	$(GO) build -o .build/linux-amd64/graphite-remote-adapter \
@@ -89,12 +89,25 @@ go-build:
 	-extldflags=-static" \
 	-a -tags netgo github.com/criteo/graphite-remote-adapter/cmd/graphite-remote-adapter
 
+go-build-ratool:
+	@GOOS=linux \
+	GOARCH=amd64 \
+	$(GO) build -o .build/linux-amd64/ratool \
+	-buildvcs=false -ldflags="-X 'github.com/prometheus/common/version.Version=$(shell cat VERSION)' \
+	-X 'github.com/prometheus/common/version.Revision=$(shell git rev-parse HEAD)' \
+	-X 'github.com/prometheus/common/version.Branch=master' \
+	-X 'github.com/prometheus/common/version.BuildUser=github' \
+	-X 'github.com/prometheus/common/version.BuildDate=$(shell date +"%Y%m%d-%H:%M:%S")' \
+	-extldflags=-static" \
+	-a -tags netgo github.com/criteo/graphite-remote-adapter/cmd/ratool
+
 test-version:
 	.build/linux-amd64/graphite-remote-adapter --version
 
 package:
 	@mkdir .tarballs
-	@tar -czvf .tarballs/graphite-remote-adapter-$(shell cat VERSION).linux-amd64.tar.gz .build/linux-amd64/graphite-remote-adapter
+	@tar -czvf .tarballs/graphite-remote-adapter-$(shell cat VERSION).linux-amd64.tar.gz --directory=.build/linux-amd64 graphite-remote-adapter
+	@tar -czvf .tarballs/ratool-$(shell cat VERSION).linux-amd64.tar.gz --directory=.build/linux-amd64 ratool
 
 clean:
 	[ -f ui/bindata.go ] && rm ui/bindata.go
